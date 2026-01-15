@@ -75,7 +75,7 @@ public annotation class TomlComment(val text: String)
  * `noInlineProperty` behaves.
  */
 @SerialInfo
-@Target(AnnotationTarget.PROPERTY)
+@Target(AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
 public annotation class TomlInline {
     @Suppress("UndocumentedPublicClass")
     public companion object {
