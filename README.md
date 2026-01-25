@@ -1,12 +1,12 @@
 # tomlkt
 
-[![Maven Central](https://img.shields.io/maven-central/v/net.peanuuutz.tomlkt/tomlkt)](https://search.maven.org/artifact/net.peanuuutz.tomlkt/tomlkt)
-[![License](https://img.shields.io/github/license/Peanuuutz/tomlkt)](http://www.apache.org/licenses/LICENSE-2.0)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.eav.tomlkt/tomlkt)](https://search.maven.org/artifact/dev.eav.tomlkt/tomlkt)
+[![License](https://img.shields.io/github/license/eav-eav-eav/tomlkt)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Powerful and easy to use [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) plugin for [TOML 1.0.0 compliance](https://toml.io/en/v1.0.0)
 encoding and decoding.
 
-*If you find any problem along usage, please raise an [issue](https://github.com/Peanuuutz/tomlkt/issues).* :wink:
+*If you find any problem along usage, please raise an [issue](https://github.com/eav-eav-eav/tomlkt/issues).* :wink:
 
 ## Setup
 
@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.peanuuutz.tomlkt:tomlkt:0.5.0")
+    implementation("dev.eav.tomlkt:tomlkt:0.6.0")
 }
 ```
 </details>
@@ -33,7 +33,7 @@ repositories {
 }
 
 dependencies {
-    implementation "net.peanuuutz.tomlkt:tomlkt:0.5.0"
+    implementation "dev.eav.tomlkt:tomlkt:0.6.0"
 }
 ```
 </details>
@@ -43,9 +43,9 @@ dependencies {
 
 ```xml
 <dependency>
-  <groupId>net.peanuuutz.tomlkt</groupId>
+  <groupId>dev.eav.tomlkt</groupId>
   <artifactId>tomlkt-jvm</artifactId>
-  <version>0.5.0</version>
+  <version>0.6.0</version>
 </dependency>
 ```
 </details>
@@ -58,10 +58,10 @@ dependencies.*
 Write some config:
 
 ```toml
-name = "Peanuuutz"
+name = "Eav"
 
 [account]
-username = "Peanuuutz"
+username = "Eav"
 password = "123456"
 ```
 
@@ -191,7 +191,7 @@ The mapping of these expect types are as follows:
 | TomlLocalDate      | LocalDate      | LocalDate        |
 | TomlLocalTime      | LocalTime      | LocalTime        |
 
-[TomlLiteral](https://github.com/Peanuuutz/tomlkt/tree/master/core/src/commonMain/kotlin/net/peanuuutz/tomlkt/TomlElement.kt) is the default intermediate representation of a date time. For conversion,
+[TomlLiteral](https://github.com/eav-eav-eav/tomlkt/tree/master/core/src/commonMain/kotlin/dev/eav/tomlkt/TomlElement.kt) is the default intermediate representation of a date time. For conversion,
 simply use `TomlLiteral(TomlLocalDateTime)` to create a `TomlLiteral` from a `TomlLocalDateTime`
 (true for other types), and `TomlLiteral.toLocalDateTime()` for the other way.
 
@@ -206,7 +206,7 @@ The working process of tomlkt:
 * Decoding: File → (TomlElementParser) → TomlElement → (TomlElementDecoder) → Model.
 
 As shown, if you already have a TOML file, you can have no model class, but still gain access
-to every entry with the help of [TomlElement](https://github.com/Peanuuutz/tomlkt/tree/master/core/src/commonMain/kotlin/net/peanuuutz/tomlkt/TomlElement.kt). Simply parse the file with
+to every entry with the help of [TomlElement](https://github.com/eav-eav-eav/tomlkt/tree/master/core/src/commonMain/kotlin/dev/eav/tomlkt/TomlElement.kt). Simply parse the file with
 `Toml.parseToTomlTable`, then access entries via various `TomlTable` extensions. Also, if you
 are a framework author, you would also need the power of dynamic construction. For example, you
 can construct a `TomlTable` like this:
@@ -267,9 +267,9 @@ role = "main"
 ip = "10.0.0.2"
 ```
 
-*Note: All the metadata coming from [annotations](https://github.com/Peanuuutz/tomlkt/tree/master/core/src/commonMain/kotlin/net/peanuuutz/tomlkt/Annotations.kt) is ignored in the parser, meaning that
+*Note: All the metadata coming from [annotations](https://github.com/eav-eav-eav/tomlkt/tree/master/core/src/commonMain/kotlin/dev/eav/tomlkt/Annotations.kt) is ignored in the parser, meaning that
 despite you could parse a file into an element, you cannot emit it back to file fully as is.*
 
 ### Others
 
-For other information, view [API docs](https://peanuuutz.github.io/tomlkt/).
+For other information, view [API docs](https://eav-eav-eav.github.io/tomlkt/).
