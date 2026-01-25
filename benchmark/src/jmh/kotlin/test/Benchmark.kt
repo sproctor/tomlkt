@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 @State(Scope.Thread)
 object TomlObjects {
-    val tomlkt = net.peanuuutz.tomlkt.Toml
+    val tomlkt = dev.eav.tomlkt.Toml
     val toml4j = com.moandjiezana.toml.Toml()
     val ktoml = com.akuleshov7.ktoml.Toml
     val jackson = com.fasterxml.jackson.dataformat.toml.TomlMapper().apply {

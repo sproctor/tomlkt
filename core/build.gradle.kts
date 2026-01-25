@@ -3,7 +3,6 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
 import io.gitlab.arturbosch.detekt.Detekt
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.jvm.tasks.KotlinJvmTest
@@ -32,7 +31,6 @@ kotlin {
     explicitApi()
 
     jvm {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             jvmTarget = JvmTarget.JVM_1_8
         }
@@ -69,7 +67,9 @@ kotlin {
                 optIn("kotlin.contracts.ExperimentalContracts")
                 optIn("kotlinx.serialization.ExperimentalSerializationApi")
                 optIn("kotlinx.serialization.InternalSerializationApi")
-                optIn("net.peanuuutz.tomlkt.TomlSpecific")
+                optIn("dev.eav.tomlkt.TomlSpecific")
+
+                compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
             }
         }
 
@@ -197,7 +197,7 @@ dokka {
         commonMain {
             sourceLink {
                 localDirectory = file("src/commonMain/kotlin")
-                remoteUrl = URI("https://github.com/Peanuuutz/tomlkt/blob/master/src/commonMain/kotlin")
+                remoteUrl = URI("https://github.com/eav-eav-eav/tomlkt/blob/master/src/commonMain/kotlin")
                 remoteLineSuffix = "#L"
             }
         }
@@ -211,12 +211,12 @@ dokka {
 }
 
 tasks {
-    create<Delete>("deleteOldDocs") {
+    register<Delete>("deleteOldDocs") {
         group = "documentation"
         delete(docsDir)
     }
 
-    create<Jar>("createJavadocByDokka") {
+    register<Jar>("createJavadocByDokka") {
         group = "documentation"
         dependsOn("deleteOldDocs", "dokkaGenerate")
         archiveClassifier = "javadoc"
@@ -237,7 +237,7 @@ mavenPublishing {
     pom {
         name = "tomlkt"
         description = "TOML support for kotlinx.serialization"
-        url = "https://github.com/Peanuuutz/tomlkt"
+        url = "https://github.com/eav-eav-eav/tomlkt"
 
         licenses {
             license {
@@ -248,17 +248,17 @@ mavenPublishing {
 
         issueManagement {
             system = "Github"
-            url = "https://github.com/Peanuuutz/tomlkt/issues"
+            url = "https://github.com/eav-eav-eav/tomlkt/issues"
         }
 
         scm {
-            connection = "https://github.com/Peanuuutz/tomlkt.git"
-            url = "https://github.com/Peanuuutz/tomlkt"
+            connection = "https://github.com/eav-eav-eav/tomlkt.git"
+            url = "https://github.com/eav-eav-eav/tomlkt"
         }
 
         developers {
             developer {
-                name = "Peanuuutz"
+                name = "Eav"
             }
         }
     }
