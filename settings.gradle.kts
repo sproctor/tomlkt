@@ -28,3 +28,4 @@ pluginManagement {
 
 include(":core")
 include(":benchmark")
+include(":compliance")
