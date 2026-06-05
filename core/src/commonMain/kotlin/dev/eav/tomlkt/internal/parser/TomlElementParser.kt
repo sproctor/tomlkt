@@ -319,6 +319,28 @@ internal class TomlElementParser private constructor(
      * or ']'.
      */
     private fun parseBareKey(): String {
+        val src = source
+        if (src != null) {
+            // Bulk-scan the run of bare-key characters and slice it out in one
+            // allocation, with no StringBuilder or per-character dispatch. The
+            // caller (parsePath) validates whatever character stops the run, so
+            // the same tokens are rejected as the char-by-char path below.
+            val begin = sourceIndex - 1
+            var end = begin
+            while (end < sourceLength && src[end] in BareKeyConstraints) {
+                end++
+            }
+            val key = src.subSequence(begin, end).toString()
+            if (end < sourceLength) {
+                previousChar = src[end - 1]
+                currentChar = src[end]
+                sourceIndex = end + 1
+            } else {
+                previousChar = src[sourceLength - 1]
+                isEof = true
+            }
+            return key
+        }
         val builder = StringBuilder()
         while (!isEof) {
             when (val current = getCurrent()) {
