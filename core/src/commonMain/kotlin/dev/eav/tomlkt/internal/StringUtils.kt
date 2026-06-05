@@ -116,22 +116,22 @@ internal fun String.escape(multiline: Boolean = false): String {
     return builder.toString()
 }
 
+// Only called once an escape is known to be present (see parseStringValue), so
+// the string always contains at least one backslash.
 internal fun String.unescape(): String {
-    // Fast path: nothing to unescape (the common case for keys and plain
-    // strings). Also covers blank strings, which never contain a backslash.
-    if ('\\' !in this) {
-        return this
-    }
     val builder = StringBuilder()
     val lastIndex = lastIndex
     var i = 0
     while (i <= lastIndex) {
-        val current = get(i)
-        if (current != '\\') {
-            builder.append(current)
-            i++
-            continue
+        // Bulk-copy the run of plain characters up to the next backslash
+        // (indexOf is an intrinsic) rather than appending one char at a time.
+        val backslash = indexOf('\\', i)
+        if (backslash < 0) {
+            builder.appendRange(this, i, length)
+            break
         }
+        builder.appendRange(this, i, backslash)
+        i = backslash
         require(i != lastIndex) { "Unexpected end in $this" }
         when (val next = get(i + 1)) {
             'n' -> {

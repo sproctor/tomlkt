@@ -54,10 +54,21 @@ import dev.eav.tomlkt.internal.unescape
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-internal class TomlElementParser(
+internal class TomlElementParser private constructor(
     private val toml: Toml,
-    private val reader: TomlReader
+    private val reader: TomlReader?,
+    // When the whole input is in memory, the parser reads it by index. This
+    // also unlocks bulk copying of plain string content (see parseStringValue).
+    private val source: CharSequence?
 ) {
+    constructor(toml: Toml, reader: TomlReader) : this(toml, reader, source = null)
+
+    constructor(toml: Toml, source: CharSequence) : this(toml, reader = null, source = source)
+
+    private val sourceLength: Int = source?.length ?: 0
+
+    private var sourceIndex: Int = 0
+
     private var currentChar: Char = 0.toChar()
 
     private var previousChar: Char = 0.toChar()
@@ -69,10 +80,20 @@ internal class TomlElementParser(
     // region Read
 
     private fun proceed() {
+        val source = source
+        if (source != null) {
+            if (sourceIndex < sourceLength) {
+                previousChar = currentChar
+                currentChar = source[sourceIndex++]
+            } else {
+                isEof = true
+            }
+            return
+        }
         if (isEof) {
             return
         }
-        val code = reader.read()
+        val code = reader!!.read()
         if (code != -1) {
             previousChar = currentChar
             currentChar = code.toChar()
@@ -803,8 +824,37 @@ internal class TomlElementParser(
             }
         }
         var trim = false
+        var hasEscape = false
         var justEnded = false
         while (!isEof) {
+            // Fast path: when the input is in memory, bulk-copy a run of plain
+            // content characters instead of appending one char per loop turn.
+            // Stops at anything needing special handling, which the `when` below
+            // then processes a character at a time.
+            val src = source
+            if (src != null && !trim) {
+                val begin = sourceIndex - 1
+                var end = begin
+                while (end < sourceLength) {
+                    val c = src[end]
+                    if (c == '\"' || c == '\\' || c == '\r' || c == '\n' || c.isForbiddenControlChar()) {
+                        break
+                    }
+                    end++
+                }
+                if (end > begin) {
+                    builder.appendRange(src, begin, end)
+                    if (end < sourceLength) {
+                        previousChar = src[end - 1]
+                        currentChar = src[end]
+                        sourceIndex = end + 1
+                    } else {
+                        previousChar = src[sourceLength - 1]
+                        isEof = true
+                    }
+                    continue
+                }
+            }
             when (val current = getCurrent()) {
                 ' ', '\t' -> {
                     if (!trim) {
@@ -861,6 +911,7 @@ internal class TomlElementParser(
                         'n', '\"', '\\', 'u', 'U', 'x', 't', 'r', 'b', 'e', 'f' -> {
                             // 'x' (\xHH) and 'e' (\e) are TOML 1.1 additions.
                             builder.append(current).append(next)
+                            hasEscape = true
                             proceed()
                         }
                         else -> {
@@ -878,7 +929,9 @@ internal class TomlElementParser(
         }
         throwIncompleteIf { !justEnded }
         val result = builder.toString()
-        val content = result.unescape()
+        // Only walk the string again to unescape when an escape was actually
+        // seen; plain strings (the common case) are returned as-is.
+        val content = if (hasEscape) result.unescape() else result
         return TomlLiteral(content)
     }
 

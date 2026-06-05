@@ -243,8 +243,7 @@ public sealed class Toml(
      * `TomlTable`.
      */
     public fun parseToTomlTable(string: String): TomlTable {
-        val reader = TomlStringReader(string)
-        return parseToTomlTable(reader)
+        return TomlElementParser(this, string).parse()
     }
 
     /**
