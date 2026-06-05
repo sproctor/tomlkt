@@ -573,15 +573,11 @@ private class TomlTableEmitter(
         val path = path
         val lastIndex = tables.size - 1
         tables.entries.forEachIndexed { index, (key, table) ->
-            // Begin element.
-            val comment = remainingComments[key]
-            if (comment != null) {
-                writer.writeLineFeed()
-                emitComment(comment)
-            }
-            // Emit entry.
+            // Begin element: a blank line separates this table, then its comment
+            // (if any) sits directly above the head.
             val innerPath = path + key
             writer.writeLineFeed()
+            remainingComments[key]?.let { emitComment(it) }
             writer.writeRegularTableHead(innerPath)
             writer.writeLineFeed()
             TomlTableEmitter(this, innerPath).emitTable(table)
@@ -599,15 +595,12 @@ private class TomlTableEmitter(
         val path = path
         val lastIndex = arrayOfTables.size - 1
         arrayOfTables.entries.forEachIndexed { index, (key, array) ->
-            // Begin element.
-            val comment = remainingComments[key]
-            if (comment != null) {
-                writer.writeLineFeed()
-                emitComment(comment)
-            }
-            // Emit entry (no key needed).
+            // Begin element: a blank line separates this block, then its comment
+            // (if any) sits directly above the head.
             val innerPath = path + key
-            TomlArrayOfTableEmitter(this, innerPath).emitArray(array)
+            writer.writeLineFeed()
+            remainingComments[key]?.let { emitComment(it) }
+            TomlArrayOfTableEmitter(this, innerPath, suppressFirstLineFeed = true).emitArray(array)
             // End element.
             if (index < lastIndex) {
                 writer.writeLineFeed()
@@ -620,7 +613,8 @@ private class TomlTableEmitter(
 
 private class TomlArrayOfTableEmitter(
     delegate: AbstractTomlElementEmitter,
-    private val path: Path
+    private val path: Path,
+    private val suppressFirstLineFeed: Boolean = false
 ) : AbstractTomlElementEmitter(delegate.toml, delegate.writer) {
     override fun createTableEmitter(table: TomlTable): AbstractTomlElementEmitter {
         return TomlTableEmitter(this, path)
@@ -637,7 +631,11 @@ private class TomlArrayOfTableEmitter(
             if (elementAnnotations != null) {
                 processAnnotations(elementAnnotations)
             }
-            writer.writeLineFeed()
+            // The first head's separator is written by the caller when it places
+            // a comment directly above it, so don't emit a second line feed here.
+            if (!(index == 0 && suppressFirstLineFeed)) {
+                writer.writeLineFeed()
+            }
             writer.writeArrayOfTableHead(path)
             writer.writeLineFeed()
             // Emit value.

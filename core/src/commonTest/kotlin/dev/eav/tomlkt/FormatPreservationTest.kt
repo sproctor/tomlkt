@@ -46,7 +46,6 @@ class FormatPreservationTest {
         )
     }
 
-    @Ignore // Needs inline-comment emitter support.
     @Test
     fun multipleCommentsAndKeys() {
         assertRoundTrip(
