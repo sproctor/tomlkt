@@ -45,6 +45,7 @@ import dev.eav.tomlkt.internal.StartTableHead
 import dev.eav.tomlkt.internal.createNumberTomlLiteral
 import dev.eav.tomlkt.internal.isDecimalDigit
 import dev.eav.tomlkt.internal.isDecimalOrSign
+import dev.eav.tomlkt.internal.isForbiddenControlChar
 import dev.eav.tomlkt.internal.isHexDigit
 import dev.eav.tomlkt.internal.throwConflictEntry
 import dev.eav.tomlkt.internal.throwIncomplete
@@ -799,11 +800,10 @@ internal class TomlElementParser(
                     proceed()
                 }
                 '\r' -> {
+                    // A carriage return is only allowed as part of a CRLF.
                     proceed()
                     throwIncompleteIf { isEof }
-                    if (getCurrent() != '\n') {
-                        builder.append(current)
-                    }
+                    throwUnexpectedTokenIf(current) { getCurrent() != '\n' }
                 }
                 '\"' -> {
                     if (!multiline) {
@@ -846,6 +846,7 @@ internal class TomlElementParser(
                     }
                 }
                 else -> {
+                    throwUnexpectedTokenIf(current) { it.isForbiddenControlChar() }
                     builder.append(current)
                     trim = false
                     proceed()
@@ -905,11 +906,10 @@ internal class TomlElementParser(
                     proceed()
                 }
                 '\r' -> {
+                    // A carriage return is only allowed as part of a CRLF.
                     proceed()
                     throwIncompleteIf { isEof }
-                    if (getCurrent() != '\n') {
-                        builder.append(current)
-                    }
+                    throwUnexpectedTokenIf(current) { getCurrent() != '\n' }
                 }
                 '\'' -> {
                     if (!multiline) {
@@ -935,6 +935,7 @@ internal class TomlElementParser(
                     break
                 }
                 else -> {
+                    throwUnexpectedTokenIf(current) { it.isForbiddenControlChar() }
                     builder.append(current)
                     proceed()
                 }
@@ -1056,10 +1057,21 @@ internal class TomlElementParser(
     private fun parseComment() {
         proceed()
         while (!isEof) {
-            if (getCurrent() == '\n') {
-                break
+            when (val current = getCurrent()) {
+                '\n' -> {
+                    break
+                }
+                '\r' -> {
+                    // A carriage return is only allowed as part of a CRLF.
+                    proceed()
+                    throwUnexpectedTokenIf(current) { isEof || getCurrent() != '\n' }
+                    break
+                }
+                else -> {
+                    throwUnexpectedTokenIf(current) { it.isForbiddenControlChar() }
+                    proceed()
+                }
             }
-            proceed()
         }
     }
 }

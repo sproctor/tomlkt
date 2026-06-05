@@ -150,15 +150,13 @@ internal fun String.unescape(): String {
             'u' -> {
                 // \u0000.
                 require(lastIndex >= i + 5) { "Unexpected end in $this" }
-                val char = substring(i + 2, i + 6).toInt(16).toChar()
-                builder.append(char)
+                builder.appendScalar(substring(i + 2, i + 6).toInt(16))
                 i += 5
             }
             'U' -> {
                 // \U00000000.
                 require(lastIndex >= i + 9) { "Unexpected end in $this" }
-                val char = substring(i + 2, i + 10).toInt(16).toChar()
-                builder.append(char)
+                builder.appendScalar(substring(i + 2, i + 10).toInt(16))
                 i += 9
             }
             't' -> {
@@ -185,6 +183,27 @@ internal fun String.unescape(): String {
     }
     return builder.toString()
 }
+
+// Appends a Unicode scalar value (from a \u/\U escape) as UTF-16, encoding
+// astral code points as a surrogate pair. Rejects values outside the Unicode
+// scalar range (> U+10FFFF or a lone surrogate).
+private fun StringBuilder.appendScalar(codePoint: Int) {
+    require(codePoint in 0x0..0x10FFFF && codePoint !in 0xD800..0xDFFF) {
+        "Invalid Unicode scalar value: U+${codePoint.toString(16)}"
+    }
+    if (codePoint <= 0xFFFF) {
+        append(codePoint.toChar())
+    } else {
+        val offset = codePoint - 0x10000
+        append((0xD800 + (offset shr 10)).toChar())
+        append((0xDC00 + (offset and 0x3FF)).toChar())
+    }
+}
+
+// Control characters TOML forbids inside strings and comments. Tab is allowed;
+// newline and carriage return are handled separately by the parser, so they
+// never reach this check.
+internal fun Char.isForbiddenControlChar(): Boolean = code < 0x20 && this != '\t' || code == 0x7F
 
 internal fun Float.toStringModified(): String {
     return when {
