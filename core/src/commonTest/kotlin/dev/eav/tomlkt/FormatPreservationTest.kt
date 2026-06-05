@@ -1,6 +1,5 @@
 package dev.eav.tomlkt
 
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -34,7 +33,6 @@ class FormatPreservationTest {
         )
     }
 
-    @Ignore // Needs emitter spacing fix: leading blank line before a commented table.
     @Test
     fun commentAboveTable() {
         assertRoundTrip(

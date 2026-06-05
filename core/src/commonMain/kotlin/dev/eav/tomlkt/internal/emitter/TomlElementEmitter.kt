@@ -459,14 +459,18 @@ private class TomlTableEmitter(
             if (hasNormalEntry) {
                 writer.writeLineFeed()
             }
-            emitInnerTables(remainingComments, tables)
+            emitInnerTables(remainingComments, tables, hasNormalEntry || path.isNotEmpty())
         }
         // Emit array of tables.
         if (arrayOfTables.isNotEmpty()) {
             if (hasNormalEntry || tables.isNotEmpty()) {
                 writer.writeLineFeed()
             }
-            emitInnerArrayOfTables(remainingComments, arrayOfTables)
+            emitInnerArrayOfTables(
+                remainingComments,
+                arrayOfTables,
+                hasNormalEntry || tables.isNotEmpty() || path.isNotEmpty()
+            )
         }
     }
 
@@ -568,15 +572,19 @@ private class TomlTableEmitter(
 
     private fun emitInnerTables(
         remainingComments: Map<String, TomlComment>,
-        tables: Map<String, TomlTable>
+        tables: Map<String, TomlTable>,
+        precededByContent: Boolean
     ) {
         val path = path
         val lastIndex = tables.size - 1
         tables.entries.forEachIndexed { index, (key, table) ->
-            // Begin element: a blank line separates this table, then its comment
-            // (if any) sits directly above the head.
+            // Begin element: a blank line separates this table from preceding
+            // content, then its comment (if any) sits directly above the head.
+            // The first head has no separator when it opens the document.
             val innerPath = path + key
-            writer.writeLineFeed()
+            if (index > 0 || precededByContent) {
+                writer.writeLineFeed()
+            }
             remainingComments[key]?.let { emitComment(it) }
             writer.writeRegularTableHead(innerPath)
             writer.writeLineFeed()
@@ -590,15 +598,19 @@ private class TomlTableEmitter(
 
     private fun emitInnerArrayOfTables(
         remainingComments: Map<String, TomlComment>,
-        arrayOfTables: Map<String, TomlArray>
+        arrayOfTables: Map<String, TomlArray>,
+        precededByContent: Boolean
     ) {
         val path = path
         val lastIndex = arrayOfTables.size - 1
         arrayOfTables.entries.forEachIndexed { index, (key, array) ->
-            // Begin element: a blank line separates this block, then its comment
-            // (if any) sits directly above the head.
+            // Begin element: a blank line separates this block from preceding
+            // content, then its comment (if any) sits directly above the head.
+            // The first head has no separator when it opens the document.
             val innerPath = path + key
-            writer.writeLineFeed()
+            if (index > 0 || precededByContent) {
+                writer.writeLineFeed()
+            }
             remainingComments[key]?.let { emitComment(it) }
             TomlArrayOfTableEmitter(this, innerPath, suppressFirstLineFeed = true).emitArray(array)
             // End element.

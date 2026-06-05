@@ -85,7 +85,6 @@ class CommentTest {
     )
 
     val s31 = """
-
         # test
         [c]
         f = 1.1
@@ -126,7 +125,6 @@ class CommentTest {
     )
 
     val s41 = """
-
         # test
         [[cs]]
         f = 1.1
@@ -164,7 +162,6 @@ class CommentTest {
     )
 
     val s51 = """
-        
         [m1]
         # single
         i = -1
@@ -194,7 +191,6 @@ class CommentTest {
     )
 
     val s61 = """
-        
         [[m1s]]
         # single
         i = 0
