@@ -274,10 +274,10 @@ internal fun createNumberTomlLiteral(
     // A number carrying an exponent is always a float, even without a
     // fractional part: `3e2` is the float 300.0, not the integer 300.
     if (isDouble || isExponent) {
-        val factor = if (isPositive) 1.0 else -1.0
-        return TomlLiteral(content.toDouble() * factor)
+        // The parser already validated the float's structure, so keep its text
+        // as the content rather than parsing to a Double and re-stringifying.
+        return TomlLiteral(content.signed(isPositive), TomlLiteral.Type.Float)
     }
-    val factor = if (isPositive) 1L else -1L
     val long = content.toLongOrNull(radix)
     if (long == null) {
         if (isPositive) {
@@ -288,5 +288,14 @@ internal fun createNumberTomlLiteral(
         // This is Long.MIN_VALUE.
         return TomlLiteral(Long.MIN_VALUE)
     }
+    if (radix == 10) {
+        // A decimal integer's text is already canonical; reuse it directly.
+        // A bare zero is never signed, so -0 normalises to "0".
+        val text = if (isPositive || long == 0L) content else "-$content"
+        return TomlLiteral(text, TomlLiteral.Type.Integer)
+    }
+    val factor = if (isPositive) 1L else -1L
     return TomlLiteral(long * factor)
 }
+
+private fun String.signed(isPositive: Boolean): String = if (isPositive) this else "-$this"
