@@ -39,6 +39,7 @@ object TomlObjects {
         yaml_invoice_example             651 B  mixed scalars, arrays-of-tables, multiline literals
         content_heavy                 18971 B  large input, multiline basic string throughput
         escape_heavy                  13510 B  large basic string dense with escape sequences
+        literal_heavy                 18971 B  large multiline literal string throughput
 
     Run a single sample with, e.g., `-p sample=content_heavy`.
  */
@@ -54,7 +55,8 @@ class Benchmark {
         "invented_server_configuration",
         "yaml_invoice_example",
         "content_heavy",
-        "escape_heavy",
+        // "escape_heavy",
+        // "literal_heavy",
     )
     lateinit var sample: String
 

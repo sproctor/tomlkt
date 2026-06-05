@@ -30,6 +30,12 @@ jmh {
     includes.set(listOf("test.Benchmark"))
 }
 
+// Always re-run the benchmark: its inputs rarely change, but cached results
+// from a different machine state (load, power profile) are misleading.
+tasks.named("jmh") {
+    outputs.upToDateWhen { false }
+}
+
 allOpen {
     annotation("org.openjdk.jmh.annotations.Measurement")
 }
