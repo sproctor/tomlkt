@@ -19,7 +19,6 @@ package dev.eav.tomlkt.internal
 import dev.eav.tomlkt.TomlInteger.Base
 import dev.eav.tomlkt.TomlInteger.Base.Dec
 import dev.eav.tomlkt.TomlLiteral
-import kotlin.math.pow
 
 internal typealias Path = List<String>
 
@@ -264,12 +263,7 @@ internal fun createNumberTomlLiteral(
     // A number carrying an exponent is always a float, even without a
     // fractional part: `3e2` is the float 300.0, not the integer 300.
     if (isDouble || isExponent) {
-        var factor = if (isPositive) 1.0 else -1.0
-        if (isExponent) {
-            val strings = content.split('e', ignoreCase = true)
-            factor *= 10.0.pow(strings[1].toInt())
-            return TomlLiteral(strings[0].toDouble() * factor)
-        }
+        val factor = if (isPositive) 1.0 else -1.0
         return TomlLiteral(content.toDouble() * factor)
     }
     val factor = if (isPositive) 1L else -1L

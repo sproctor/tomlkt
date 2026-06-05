@@ -669,10 +669,17 @@ internal class TomlElementParser(
                     throwUnexpectedTokenIf(current) { isEof || getCurrent() != '\n' }
                 }
                 ' ' -> {
+                    // A space after a date is the date-time separator only if a
+                    // time follows it. Otherwise this is a local date and the
+                    // space just precedes a comment or the end of the value.
                     if (hasDate && !hasDateTimeSeparator) {
-                        hasDateTimeSeparator = true
-                        builder.append('T')
                         proceed()
+                        if (!isEof && getCurrent() in '0'..'9') {
+                            hasDateTimeSeparator = true
+                            builder.append('T')
+                        } else {
+                            break
+                        }
                     } else {
                         break
                     }
