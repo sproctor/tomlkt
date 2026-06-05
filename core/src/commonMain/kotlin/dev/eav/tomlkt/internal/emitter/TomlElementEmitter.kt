@@ -397,6 +397,9 @@ private class TomlTableEmitter(
     // We delay the emission of comments.
     private var comment: TomlComment? = null
 
+    // An inline comment is emitted after the value, on the same line.
+    private var inlineComment: TomlComment? = null
+
     // Array of table is handled separately.
     override fun createArrayEmitter(array: TomlArray): AbstractTomlElementEmitter {
         return if (!isInline && array.isNotEmpty()) {
@@ -441,6 +444,7 @@ private class TomlTableEmitter(
             )
             // End element.
             comment = null
+            inlineComment = null
             isInline = false
             blockArray = null
             isStringMultiline = false
@@ -470,7 +474,11 @@ private class TomlTableEmitter(
         for (annotation in annotations) {
             when (annotation) {
                 is TomlComment -> {
-                    comment = annotation
+                    if (annotation.inline) {
+                        inlineComment = annotation
+                    } else {
+                        comment = annotation
+                    }
                 }
                 is TomlInline -> {
                     isInline = true
@@ -547,7 +555,15 @@ private class TomlTableEmitter(
         }
         writer.startEntry(key)
         emitElement(element)
+        inlineComment?.let { emitInlineComment(it) }
         return true
+    }
+
+    private fun emitInlineComment(comment: TomlComment) {
+        writer.writeSpace()
+        writer.startComment()
+        writer.writeSpace()
+        writer.writeString(comment.text.escape())
     }
 
     private fun emitInnerTables(

@@ -88,6 +88,9 @@ internal class TomlElementParser private constructor(
 
     private var lastStringLiteral = false
 
+    // Inline comment (after the value on the same line) of the entry being read.
+    private var lastInlineComment: String? = null
+
     // region Read
 
     private fun proceed() {
@@ -404,6 +407,7 @@ internal class TomlElementParser private constructor(
     private fun parseValue(isInsideStructure: Boolean): TomlElement {
         lastStringMultiline = false
         lastStringLiteral = false
+        lastInlineComment = null
         var element: TomlElement? = null
         while (!isEof) {
             when (val current = getCurrent()) {
@@ -418,7 +422,12 @@ internal class TomlElementParser private constructor(
                     throwUnexpectedTokenIf(current) { isEof || getCurrent() != '\n' }
                 }
                 Comment -> {
-                    parseComment()
+                    // A comment after a top-level value is its inline comment;
+                    // comments inside arrays/inline tables are not yet captured.
+                    val text = parseComment()
+                    if (!isInsideStructure) {
+                        lastInlineComment = text
+                    }
                 }
                 ElementSeparator, EndArray, EndInlineTable -> {
                     throwUnexpectedTokenIf(current) { !isInsideStructure }
@@ -1232,15 +1241,20 @@ internal class TomlElementParser private constructor(
 
     private fun takeEntryAnnotations(value: TomlElement?): List<Annotation> {
         val hasComment = pendingComments.isNotEmpty()
+        val inlineComment = lastInlineComment
+        lastInlineComment = null
         val styledString = value is TomlLiteral && value.type == Type.String &&
             (lastStringMultiline || lastStringLiteral)
-        if (!hasComment && !styledString) {
+        if (!hasComment && inlineComment == null && !styledString) {
             return emptyList()
         }
         val annotations = mutableListOf<Annotation>()
         if (hasComment) {
             annotations.add(TomlComment(pendingComments.toString()))
             pendingComments.clear()
+        }
+        if (inlineComment != null) {
+            annotations.add(TomlComment(inlineComment, inline = true))
         }
         if (styledString) {
             if (lastStringMultiline) {

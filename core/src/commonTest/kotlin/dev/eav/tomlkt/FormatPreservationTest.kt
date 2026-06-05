@@ -19,7 +19,6 @@ class FormatPreservationTest {
         assertEquals(toml, encoded)
     }
 
-    @Ignore // Needs emitter support for inline comments (not yet modelled).
     @Test
     fun inlineComment() {
         assertRoundTrip("name = \"Tom\" # the owner")
