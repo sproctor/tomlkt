@@ -1021,7 +1021,6 @@ internal class TomlElementParser(
         proceed()
         val builder = KeyNode("", isLast = false)
         var expectEntry = true
-        var justStarted = true
         var justEnded = false
         while (!isEof) {
             when (val current = getCurrent()) {
@@ -1029,10 +1028,18 @@ internal class TomlElementParser(
                     proceed()
                 }
                 '\n' -> {
-                    throwIncomplete()
+                    // TOML 1.1 allows newlines inside inline tables.
+                    currentLineNumber++
+                    proceed()
+                }
+                '\r' -> {
+                    proceed()
+                    throwIncompleteIf { isEof }
+                    throwUnexpectedTokenIf(current) { getCurrent() != '\n' }
                 }
                 EndInlineTable -> {
-                    throwUnexpectedTokenIf(current) { expectEntry && !justStarted }
+                    // An empty table or a trailing comma before '}' is allowed;
+                    // a leading or doubled comma is rejected by the ',' arm.
                     justEnded = true
                     proceed()
                     break
@@ -1056,7 +1063,6 @@ internal class TomlElementParser(
                         throwConflictEntry(localPath)
                     }
                     expectEntry = false
-                    justStarted = false
                 }
             }
         }
