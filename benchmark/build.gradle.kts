@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.allopen)
     alias(libs.plugins.kotlin.kapt)
 
@@ -25,9 +24,6 @@ dependencies {
     jmh(libs.night.config.toml)
     // tomlj
     jmh(libs.tomlj)
-
-    // official JSON
-    jmh(libs.kotlinx.serialization.json)
 }
 
 jmh {

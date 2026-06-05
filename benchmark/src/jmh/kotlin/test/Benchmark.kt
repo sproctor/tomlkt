@@ -8,7 +8,9 @@ import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Mode
 import org.openjdk.jmh.annotations.OutputTimeUnit
+import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
@@ -28,61 +30,71 @@ object TomlObjects {
 }
 
 /*
-    SmallSampleConfig:
+    Parsing benchmark over a representative subset of the eno-lang sample corpus
+    (https://github.com/eno-lang/benchmarks/tree/main/samples). The TOML files
+    live in src/jmh/resources/samples and are selected through the `sample`
+    parameter. Three samples are kept, each covering a distinct parser workload:
 
-    Benchmark          Mode  Cnt       Score      Error  Units
-    Benchmark.jackson  avgt    5   5021.622 ±  140.504  ns/op
-    Benchmark.night    avgt    5   7625.834 ±  593.511  ns/op
-    Benchmark.tomlkt   avgt    5   9006.957 ±  158.111  ns/op
-    Benchmark.toml4j   avgt    5   9628.198 ±  362.380  ns/op
-    Benchmark.ktoml    avgt    5  30904.482 ± 2665.325  ns/op
-    Benchmark.tomlj    avgt    5  82332.312 ± 1493.406  ns/op
+        invented_server_configuration    539 B  nested tables, string arrays, booleans
+        yaml_invoice_example             651 B  mixed scalars, arrays-of-tables, multiline literals
+        content_heavy                 18971 B  large input, multiline basic string throughput
 
-    LargeSampleConfig:
-
-    Benchmark          Mode  Cnt        Score       Error  Units
-    Benchmark.jackson  avgt    5   48124.930 ±  2675.439  ns/op
-    Benchmark.night    avgt    5   81193.034 ±  1100.800  ns/op
-    Benchmark.tomlkt   avgt    5  134145.378 ± 29334.081  ns/op
-    Benchmark.toml4j   avgt    5  227001.105 ±  1702.516  ns/op
-    Benchmark.tomlj    avgt    5  521451.284 ± 13951.421  ns/op
-    Benchmark.ktoml    avgt    5  640967.592 ±  9486.035  ns/op
+    Run a single sample with, e.g., `-p sample=content_heavy`.
  */
 @BenchmarkMode(Mode.AverageTime)
-@Warmup(iterations = 4)
-@Measurement(iterations = 5)
+@Warmup(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
 @Threads(4)
 @Fork(1)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
 class Benchmark {
+    @Param(
+        "invented_server_configuration",
+        "yaml_invoice_example",
+        "content_heavy",
+    )
+    lateinit var sample: String
+
+    private lateinit var content: String
+
+    @Setup
+    fun loadSample() {
+        val resource = "/samples/$sample.toml"
+        content = checkNotNull(javaClass.getResourceAsStream(resource)) {
+            "missing sample resource: $resource"
+        }.bufferedReader().use { it.readText() }
+    }
+
     @Benchmark
     fun tomlkt(hole: Blackhole) {
-        hole.consume(TomlObjects.tomlkt.parseToTomlTable(SmallSampleConfig))
+        hole.consume(TomlObjects.tomlkt.parseToTomlTable(content))
     }
 
     @Benchmark
     fun toml4j(hole: Blackhole) {
-        hole.consume(TomlObjects.toml4j.read(SmallSampleConfig))
+        hole.consume(TomlObjects.toml4j.read(content))
     }
 
-    @Benchmark
+    // Disabled: ktoml is an order of magnitude slower and dominates run time.
+    // @Benchmark
     fun ktoml(hole: Blackhole) {
-        hole.consume(TomlObjects.ktoml.tomlParser.parseString(SmallSampleConfig))
+        hole.consume(TomlObjects.ktoml.tomlParser.parseString(content))
     }
 
     @Benchmark
     fun jackson(hole: Blackhole) {
-        hole.consume(TomlObjects.jackson.readTree(SmallSampleConfig))
+        hole.consume(TomlObjects.jackson.readTree(content))
     }
 
     @Benchmark
     fun night(hole: Blackhole) {
-        hole.consume(TomlObjects.night.parse(SmallSampleConfig))
+        hole.consume(TomlObjects.night.parse(content))
     }
 
-    @Benchmark
+    // Disabled: tomlj is an order of magnitude slower and dominates run time.
+    // @Benchmark
     fun tomlj(hole: Blackhole) {
-        hole.consume(org.tomlj.Toml.parse(SmallSampleConfig))
+        hole.consume(org.tomlj.Toml.parse(content))
     }
 }
