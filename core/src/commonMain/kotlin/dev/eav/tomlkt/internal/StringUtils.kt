@@ -146,6 +146,17 @@ internal fun String.unescape(): String {
                 builder.append('\\')
                 i++
             }
+            'e' -> {
+                // \e -> ESC (U+001B), a TOML 1.1 addition.
+                builder.append(27.toChar())
+                i++
+            }
+            'x' -> {
+                // \xHH, a TOML 1.1 addition.
+                require(lastIndex >= i + 3) { "Unexpected end in $this" }
+                builder.appendScalar(substring(i + 2, i + 4).toInt(16))
+                i += 3
+            }
             'u' -> {
                 // \u0000.
                 require(lastIndex >= i + 5) { "Unexpected end in $this" }

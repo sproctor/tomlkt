@@ -858,7 +858,8 @@ internal class TomlElementParser(
                             throwUnexpectedTokenIf(current) { !multiline }
                             trim = true
                         }
-                        'n', '\"', '\\', 'u', 'U', 't', 'r', 'b', 'f' -> {
+                        'n', '\"', '\\', 'u', 'U', 'x', 't', 'r', 'b', 'e', 'f' -> {
+                            // 'x' (\xHH) and 'e' (\e) are TOML 1.1 additions.
                             builder.append(current).append(next)
                             proceed()
                         }
