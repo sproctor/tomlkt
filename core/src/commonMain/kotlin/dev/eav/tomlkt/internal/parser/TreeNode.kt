@@ -75,22 +75,24 @@ internal class ValueNode(
 internal fun KeyNode.addByPath(
     path: Path,
     node: TreeNode,
-    arrayOfTableIndices: Map<Path, Int>?
+    arrayOfTableIndices: Map<Path, Int>?,
+    annotations: List<Annotation> = emptyList()
 ): Boolean {
-    return addByPathRecursively(path, node, arrayOfTableIndices, 0)
+    return addByPathRecursively(path, node, arrayOfTableIndices, annotations, 0)
 }
 
 private tailrec fun KeyNode.addByPathRecursively(
     path: Path,
     node: TreeNode,
     arrayOfTableIndices: Map<Path, Int>?,
+    annotations: List<Annotation>,
     index: Int
 ): Boolean {
     val child = get(path[index])
     if (index == path.lastIndex) {
         return when {
             child == null -> {
-                add(node)
+                add(node, annotations)
                 true
             }
             child !is KeyNode -> {
@@ -109,17 +111,17 @@ private tailrec fun KeyNode.addByPathRecursively(
         null -> {
             val intermediate = KeyNode(path[index], isLast = node is ValueNode)
             add(intermediate)
-            intermediate.addByPathRecursively(path, node, arrayOfTableIndices, index + 1)
+            intermediate.addByPathRecursively(path, node, arrayOfTableIndices, annotations, index + 1)
         }
         is KeyNode -> {
-            child.addByPathRecursively(path, node, arrayOfTableIndices, index + 1)
+            child.addByPathRecursively(path, node, arrayOfTableIndices, annotations, index + 1)
         }
         is ArrayNode -> {
             check(arrayOfTableIndices != null)
             val currentPath = path.subList(0, index + 1)
             val childIndex = arrayOfTableIndices[currentPath]!!
             val grandChild = child[childIndex]
-            grandChild.addByPathRecursively(path, node, arrayOfTableIndices, index + 1)
+            grandChild.addByPathRecursively(path, node, arrayOfTableIndices, annotations, index + 1)
         }
         is ValueNode -> {
             false

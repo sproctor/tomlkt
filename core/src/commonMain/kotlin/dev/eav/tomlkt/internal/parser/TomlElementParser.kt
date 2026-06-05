@@ -21,9 +21,12 @@ import dev.eav.tomlkt.NativeLocalDateTime
 import dev.eav.tomlkt.NativeLocalTime
 import dev.eav.tomlkt.NativeOffsetDateTime
 import dev.eav.tomlkt.TomlArray
+import dev.eav.tomlkt.TomlComment
 import dev.eav.tomlkt.TomlElement
 import dev.eav.tomlkt.TomlLiteral
 import dev.eav.tomlkt.TomlLiteral.Type
+import dev.eav.tomlkt.TomlLiteralString
+import dev.eav.tomlkt.TomlMultilineString
 import dev.eav.tomlkt.TomlNull
 import dev.eav.tomlkt.TomlReader
 import dev.eav.tomlkt.TomlTable
@@ -74,6 +77,16 @@ internal class TomlElementParser private constructor(
     private var currentLineNumber: Int = 1
 
     private var isEof: Boolean = false
+
+    // Standalone comment lines collected since the last entry, attached as a
+    // TomlComment to the next key or table so they survive a round trip.
+    private val pendingComments = StringBuilder()
+
+    // Style of the most recently parsed scalar string value, so the entry can
+    // be annotated to re-emit it the same way.
+    private var lastStringMultiline = false
+
+    private var lastStringLiteral = false
 
     // region Read
 
@@ -180,12 +193,15 @@ internal class TomlElementParser private constructor(
                     val value = parseValue(isInsideStructure = false)
                     val node = ValueNode(key, value)
                     val path = if (currentTablePath != null) currentTablePath + localPath else localPath
-                    if (tree.addByPath(path, node, arrayOfTableIndices).not()) {
+                    if (tree.addByPath(path, node, arrayOfTableIndices, takeEntryAnnotations(value)).not()) {
                         throwConflictEntry(path)
                     }
                 }
                 Comment -> {
-                    parseComment()
+                    if (pendingComments.isNotEmpty()) {
+                        pendingComments.append('\n')
+                    }
+                    pendingComments.append(parseComment())
                 }
                 StartTableHead -> {
                     proceed()
@@ -195,10 +211,12 @@ internal class TomlElementParser private constructor(
                         proceed()
                     }
                     val path = parseTableHead(isArrayOfTable)
+                    // Comments collected above the table head attach to it.
+                    val headAnnotations = takeEntryAnnotations(null)
                     if (!isArrayOfTable) {
                         val key = path.last()
                         val node = KeyNode(key, isLast = true)
-                        if (tree.addByPath(path, node, arrayOfTableIndices).not()) {
+                        if (tree.addByPath(path, node, arrayOfTableIndices, headAnnotations).not()) {
                             throwConflictEntry(path)
                         }
                     } else {
@@ -213,7 +231,7 @@ internal class TomlElementParser private constructor(
                             arrayOfTableIndices[path] = 0
                             val key = path.last()
                             val node = ArrayNode(key)
-                            if (tree.addByPath(path, node, arrayOfTableIndices).not()) {
+                            if (tree.addByPath(path, node, arrayOfTableIndices, headAnnotations).not()) {
                                 throwConflictEntry(path)
                             }
                         } else {
@@ -384,6 +402,8 @@ internal class TomlElementParser private constructor(
      * Start right on the actual token, end right on '\n' or ',' or ']' or '}'.
      */
     private fun parseValue(isInsideStructure: Boolean): TomlElement {
+        lastStringMultiline = false
+        lastStringLiteral = false
         var element: TomlElement? = null
         while (!isEof) {
             when (val current = getCurrent()) {
@@ -843,6 +863,7 @@ internal class TomlElementParser private constructor(
                 return TomlLiteral("")
             }
         }
+        lastStringMultiline = multiline
         var trim = false
         var hasEscape = false
         var justEnded = false
@@ -959,6 +980,7 @@ internal class TomlElementParser private constructor(
      * Start right on the first '\'', end right after the last '\''.
      */
     private fun parseLiteralStringValue(): TomlLiteral {
+        lastStringLiteral = true
         proceed()
         throwIncompleteIf { isEof }
         val builder = StringBuilder()
@@ -988,6 +1010,7 @@ internal class TomlElementParser private constructor(
                 return TomlLiteral("")
             }
         }
+        lastStringMultiline = multiline
         var justEnded = false
         while (!isEof) {
             // Fast path: when the input is in memory, bulk-copy a run of plain
@@ -1180,10 +1203,12 @@ internal class TomlElementParser private constructor(
     }
 
     /**
-     * Start right on '#', end right on '\n'.
+     * Start right on '#', end right on '\n'. Returns the comment text with a
+     * single leading space removed, matching how the emitter renders comments.
      */
-    private fun parseComment() {
+    private fun parseComment(): String {
         proceed()
+        val builder = StringBuilder()
         while (!isEof) {
             when (val current = getCurrent()) {
                 '\n' -> {
@@ -1197,9 +1222,34 @@ internal class TomlElementParser private constructor(
                 }
                 else -> {
                     throwUnexpectedTokenIf(current) { it.isForbiddenControlChar() }
+                    builder.append(current)
                     proceed()
                 }
             }
         }
+        return builder.toString().removePrefix(" ")
+    }
+
+    private fun takeEntryAnnotations(value: TomlElement?): List<Annotation> {
+        val hasComment = pendingComments.isNotEmpty()
+        val styledString = value is TomlLiteral && value.type == Type.String &&
+            (lastStringMultiline || lastStringLiteral)
+        if (!hasComment && !styledString) {
+            return emptyList()
+        }
+        val annotations = mutableListOf<Annotation>()
+        if (hasComment) {
+            annotations.add(TomlComment(pendingComments.toString()))
+            pendingComments.clear()
+        }
+        if (styledString) {
+            if (lastStringMultiline) {
+                annotations.add(TomlMultilineString.Instance)
+            }
+            if (lastStringLiteral) {
+                annotations.add(TomlLiteralString.Instance)
+            }
+        }
+        return annotations
     }
 }
