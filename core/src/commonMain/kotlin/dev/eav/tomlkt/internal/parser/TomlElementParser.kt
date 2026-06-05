@@ -484,6 +484,7 @@ internal class TomlElementParser(
      */
     private fun parseNumberOrDateTimeValue(sign: Char?): TomlLiteral {
         val builder = StringBuilder()
+        var leadingZero = false
         if (getCurrent() == '0') {
             proceed()
             if (isEof) {
@@ -504,6 +505,12 @@ internal class TomlElementParser(
                 }
                 else -> {
                     builder.append('0')
+                    // A leading zero is only valid as the bare integer 0 or the
+                    // 0 before a fraction/exponent (0.5, 0e1). Another digit or
+                    // underscore after it means a leading-zero number -- unless
+                    // it turns out to be a zero-padded date-time field, which is
+                    // checked once the value's kind is known (see below).
+                    leadingZero = current in '0'..'9' || current == '_'
                 }
             }
         }
@@ -543,6 +550,11 @@ internal class TomlElementParser(
             }
         }
         return if (isNumber) {
+            // Now that we know it is a number (not a zero-padded date-time), a
+            // leading zero is illegal.
+            if (leadingZero) {
+                throwUnexpectedToken('0')
+            }
             parseNumberValue(builder, radix = 10, sign)
         } else {
             parseDateTimeValue(builder)
@@ -628,7 +640,9 @@ internal class TomlElementParser(
                     proceed()
                 }
                 '_' -> {
-                    throwUnexpectedTokenIf(current) { !getPrevious().isHexDigit() }
+                    // An underscore must sit between two digits, so it cannot be
+                    // the first character after a 0x/0o/0b prefix (builder empty).
+                    throwUnexpectedTokenIf(current) { builder.isEmpty() || !getPrevious().isHexDigit() }
                     proceed()
                     throwIncompleteIf { isEof }
                     // Urge check.
