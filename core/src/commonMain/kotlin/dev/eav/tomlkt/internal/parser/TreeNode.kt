@@ -38,11 +38,20 @@ internal class KeyNode(
 ) : TreeNode(key) {
     val children: MutableMap<String, TreeNode> = mutableMapOf()
 
-    val annotations: MutableMap<String, List<Annotation>> = mutableMapOf()
+    // Allocated lazily: most documents have no comments or string-style markers,
+    // so the common node keeps the shared empty map instead of a per-node one.
+    private var lazyAnnotations: MutableMap<String, List<Annotation>>? = null
+
+    val annotations: Map<String, List<Annotation>>
+        get() = lazyAnnotations ?: emptyMap()
 
     fun add(child: TreeNode, childAnnotations: List<Annotation> = emptyList()) {
         children[child.key] = child
-        annotations[child.key] = childAnnotations
+        if (childAnnotations.isNotEmpty()) {
+            val map = lazyAnnotations
+                ?: mutableMapOf<String, List<Annotation>>().also { lazyAnnotations = it }
+            map[child.key] = childAnnotations
+        }
     }
 
     operator fun get(key: String): TreeNode? {
@@ -53,11 +62,27 @@ internal class KeyNode(
 internal class ArrayNode(key: String) : TreeNode(key) {
     val children: MutableList<KeyNode> = mutableListOf()
 
-    val annotations: MutableList<List<Annotation>> = mutableListOf()
+    // Allocated lazily and only once an element actually carries annotations, at
+    // which point earlier elements are back-filled so the list stays index-
+    // aligned with [children] (the emitter reads it by index).
+    private var lazyAnnotations: MutableList<List<Annotation>>? = null
+
+    val annotations: List<List<Annotation>>
+        get() = lazyAnnotations ?: emptyList()
 
     fun add(child: KeyNode, childAnnotations: List<Annotation> = emptyList()) {
+        val index = children.size
         children.add(child)
-        annotations.add(childAnnotations)
+        val existing = lazyAnnotations
+        when {
+            existing != null -> existing.add(childAnnotations)
+            childAnnotations.isNotEmpty() -> {
+                lazyAnnotations = ArrayList<List<Annotation>>(index + 1).apply {
+                    repeat(index) { add(emptyList()) }
+                    add(childAnnotations)
+                }
+            }
+        }
     }
 
     operator fun get(index: Int): KeyNode {
