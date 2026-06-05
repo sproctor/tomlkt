@@ -20,7 +20,6 @@ import dev.eav.tomlkt.NativeLocalDate
 import dev.eav.tomlkt.NativeLocalDateTime
 import dev.eav.tomlkt.NativeLocalTime
 import dev.eav.tomlkt.NativeOffsetDateTime
-import dev.eav.tomlkt.Toml
 import dev.eav.tomlkt.TomlArray
 import dev.eav.tomlkt.TomlElement
 import dev.eav.tomlkt.TomlLiteral
@@ -55,15 +54,14 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 internal class TomlElementParser private constructor(
-    private val toml: Toml,
     private val reader: TomlReader?,
     // When the whole input is in memory, the parser reads it by index. This
     // also unlocks bulk copying of plain string content (see parseStringValue).
     private val source: CharSequence?
 ) {
-    constructor(toml: Toml, reader: TomlReader) : this(toml, reader, source = null)
+    constructor(reader: TomlReader) : this(reader, source = null)
 
-    constructor(toml: Toml, source: CharSequence) : this(toml, reader = null, source = source)
+    constructor(source: CharSequence) : this(reader = null, source = source)
 
     private val sourceLength: Int = source?.length ?: 0
 

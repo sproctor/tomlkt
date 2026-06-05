@@ -243,7 +243,7 @@ public sealed class Toml(
      * `TomlTable`.
      */
     public fun parseToTomlTable(string: String): TomlTable {
-        return TomlElementParser(this, string).parse()
+        return TomlElementParser(string).parse()
     }
 
     /**
@@ -254,7 +254,7 @@ public sealed class Toml(
      * `TomlTable`.
      */
     public fun parseToTomlTable(reader: TomlReader): TomlTable {
-        return TomlElementParser(this, reader).parse()
+        return TomlElementParser(reader).parse()
     }
 }
 
