@@ -811,28 +811,29 @@ internal class TomlElementParser(
                         proceed()
                         break
                     }
-                    proceed()
-                    throwIncompleteIf { isEof }
-                    val second = getCurrent()
-                    if (second != '\"') {
-                        builder.append(current)
-                        continue
+                    // Count the run of consecutive quotes. The closing
+                    // delimiter is the final three; up to two quotes right
+                    // before them are literal content (more than two is
+                    // invalid).
+                    var quoteCount = 0
+                    while (!isEof && getCurrent() == '\"') {
+                        quoteCount++
+                        proceed()
                     }
-                    proceed()
-                    throwIncompleteIf { isEof }
-                    if (getCurrent() != '\"') {
-                        builder.append(current).append(second)
-                        continue
+                    if (quoteCount >= 3) {
+                        throwUnexpectedTokenIf(current) { quoteCount - 3 > 2 }
+                        repeat(quoteCount - 3) { builder.append('\"') }
+                        justEnded = true
+                        break
                     }
-                    justEnded = true
-                    proceed()
-                    break
+                    trim = false
+                    repeat(quoteCount) { builder.append('\"') }
                 }
                 '\\' -> {
                     proceed()
                     throwIncompleteIf { isEof }
                     when (val next = getCurrent()) {
-                        ' ', '\t', '\n' -> {
+                        ' ', '\t', '\n', '\r' -> {
                             throwUnexpectedTokenIf(current) { !multiline }
                             trim = true
                         }
@@ -917,22 +918,21 @@ internal class TomlElementParser(
                         proceed()
                         break
                     }
-                    proceed()
-                    throwIncompleteIf { isEof }
-                    val second = getCurrent()
-                    if (second != '\'') {
-                        builder.append(current)
-                        continue
+                    // Count the run of consecutive apostrophes. The closing
+                    // delimiter is the final three; up to two right before
+                    // them are literal content (more than two is invalid).
+                    var quoteCount = 0
+                    while (!isEof && getCurrent() == '\'') {
+                        quoteCount++
+                        proceed()
                     }
-                    proceed()
-                    throwIncompleteIf { isEof }
-                    if (getCurrent() != '\'') {
-                        builder.append(current).append(second)
-                        continue
+                    if (quoteCount >= 3) {
+                        throwUnexpectedTokenIf(current) { quoteCount - 3 > 2 }
+                        repeat(quoteCount - 3) { builder.append('\'') }
+                        justEnded = true
+                        break
                     }
-                    justEnded = true
-                    proceed()
-                    break
+                    repeat(quoteCount) { builder.append('\'') }
                 }
                 else -> {
                     throwUnexpectedTokenIf(current) { it.isForbiddenControlChar() }
