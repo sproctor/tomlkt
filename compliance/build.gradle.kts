@@ -4,16 +4,15 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 // (https://github.com/toml-lang/toml-test). Not part of the published library.
 
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.serialization")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     application
 }
 
 dependencies {
     implementation(project(":core"))
 
-    val serializationVersion: String by rootProject
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
+    implementation(libs.kotlinx.serialization.json)
 }
 
 application {

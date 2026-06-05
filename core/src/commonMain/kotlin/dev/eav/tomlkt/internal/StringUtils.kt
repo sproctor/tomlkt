@@ -43,20 +43,30 @@ internal const val StartInlineTable = '{'
 
 internal const val EndInlineTable = '}'
 
-internal const val DecimalConstraints: String = "0123456789"
-
-internal const val HexadecimalConstraints: String = "0123456789" + "abcdef" + "ABCDEF"
-
-internal const val DecimalOrSignConstraints: String = "0123456789" + "-+"
-
-internal const val BareKeyConstraints: String =
-    "abcdefghijklmnopqrstuvwxyz" + "-_" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789"
-
 internal const val DefiniteDateTimeConstraints: String = "Tt:Zz"
 
 internal const val DefiniteNumberConstraints: String = "." + "acdef" + "ABCDEF" + "_"
 
 internal val BareKeyRegex: Regex = Regex("[A-Za-z0-9_-]+")
+
+// Character-class checks for the parser hot path. These compile to range
+// comparisons (cheap bounds checks, no allocation) instead of scanning a
+// constraint String with `String.contains` for every character.
+
+internal fun Char.isDecimalDigit(): Boolean = this in '0'..'9'
+
+internal fun Char.isHexDigit(): Boolean =
+    this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'
+
+internal fun Char.isDecimalOrSign(): Boolean =
+    this in '0'..'9' || this == '+' || this == '-'
+
+// Usable as `char in BareKeyConstraints` in a `when`, like the former String,
+// but without the per-character linear scan.
+internal object BareKeyConstraints {
+    operator fun contains(char: Char): Boolean =
+        char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' || char == '-' || char == '_'
+}
 
 internal val AsciiMapping: List<String> = buildList(128) {
     for (i in 0x00..0x0f) {
@@ -108,7 +118,9 @@ internal fun String.escape(multiline: Boolean = false): String {
 }
 
 internal fun String.unescape(): String {
-    if (isBlank()) {
+    // Fast path: nothing to unescape (the common case for keys and plain
+    // strings). Also covers blank strings, which never contain a backslash.
+    if ('\\' !in this) {
         return this
     }
     val builder = StringBuilder()

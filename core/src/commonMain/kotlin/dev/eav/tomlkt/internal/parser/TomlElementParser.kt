@@ -29,17 +29,13 @@ import dev.eav.tomlkt.TomlNull
 import dev.eav.tomlkt.TomlReader
 import dev.eav.tomlkt.TomlTable
 import dev.eav.tomlkt.internal.BareKeyConstraints
-import dev.eav.tomlkt.internal.BareKeyRegex
 import dev.eav.tomlkt.internal.Comment
-import dev.eav.tomlkt.internal.DecimalConstraints
-import dev.eav.tomlkt.internal.DecimalOrSignConstraints
 import dev.eav.tomlkt.internal.DefiniteDateTimeConstraints
 import dev.eav.tomlkt.internal.DefiniteNumberConstraints
 import dev.eav.tomlkt.internal.ElementSeparator
 import dev.eav.tomlkt.internal.EndArray
 import dev.eav.tomlkt.internal.EndInlineTable
 import dev.eav.tomlkt.internal.EndTableHead
-import dev.eav.tomlkt.internal.HexadecimalConstraints
 import dev.eav.tomlkt.internal.KeySeparator
 import dev.eav.tomlkt.internal.KeyValueSeparator
 import dev.eav.tomlkt.internal.Path
@@ -47,6 +43,9 @@ import dev.eav.tomlkt.internal.StartArray
 import dev.eav.tomlkt.internal.StartInlineTable
 import dev.eav.tomlkt.internal.StartTableHead
 import dev.eav.tomlkt.internal.createNumberTomlLiteral
+import dev.eav.tomlkt.internal.isDecimalDigit
+import dev.eav.tomlkt.internal.isDecimalOrSign
+import dev.eav.tomlkt.internal.isHexDigit
 import dev.eav.tomlkt.internal.throwConflictEntry
 import dev.eav.tomlkt.internal.throwIncomplete
 import dev.eav.tomlkt.internal.throwUnexpectedToken
@@ -313,17 +312,16 @@ internal class TomlElementParser(
                     throwUnexpectedToken(current)
                 }
                 else -> {
+                    // Validate each character as it is read; the caller only
+                    // enters here on a bare-key character, so the result is
+                    // never empty (matching the former `[A-Za-z0-9_-]+` regex).
+                    throwUnexpectedTokenIf(current) { it !in BareKeyConstraints }
                     builder.append(current)
                     proceed()
                 }
             }
         }
-        val result = builder.toString()
-        if (BareKeyRegex.matches(result).not()) { // Lazy check.
-            val unexpectedTokens = result.filterNot(BareKeyConstraints::contains)
-            throwUnexpectedToken(unexpectedTokens[0])
-        }
-        return result
+        return builder.toString()
     }
 
     /**
@@ -370,7 +368,7 @@ internal class TomlElementParser(
                         't', 'f' -> {
                             parseBooleanValue()
                         }
-                        in DecimalConstraints -> {
+                        in '0'..'9' -> {
                             parseNumberOrDateTimeValue(sign = null)
                         }
                         'i' -> {
@@ -395,7 +393,7 @@ internal class TomlElementParser(
                             proceed()
                             throwIncompleteIf { isEof }
                             when (val second = getCurrent()) {
-                                in DecimalConstraints -> {
+                                in '0'..'9' -> {
                                     // Pretend it could be a date time.
                                     parseNumberOrDateTimeValue(current)
                                 }
@@ -519,7 +517,7 @@ internal class TomlElementParser(
                     proceed()
                     throwUnexpectedTokenIf(current) { isEof || getCurrent() != '\n' }
                 }
-                in DecimalConstraints -> {
+                in '0'..'9' -> {
                     builder.append(current)
                     proceed()
                 }
@@ -587,13 +585,13 @@ internal class TomlElementParser(
                 }
                 '.' -> {
                     throwUnexpectedTokenIf(current) {
-                        isDouble || isExponent || radix != 10 || getPrevious() !in DecimalConstraints
+                        isDouble || isExponent || radix != 10 || !getPrevious().isDecimalDigit()
                     }
                     proceed()
                     throwIncompleteIf { isEof }
                     // Urge check.
                     val next = getCurrent()
-                    throwUnexpectedTokenIf(next) { it !in DecimalConstraints }
+                    throwUnexpectedTokenIf(next) { !it.isDecimalDigit() }
                     builder.append(current).append(next)
                     isDouble = true
                     proceed()
@@ -602,13 +600,13 @@ internal class TomlElementParser(
                     when (radix) {
                         10 -> {
                             throwUnexpectedTokenIf(current) {
-                                isExponent || getPrevious() !in DecimalConstraints
+                                isExponent || !getPrevious().isDecimalDigit()
                             }
                             proceed()
                             throwIncompleteIf { isEof }
                             // Urge check.
                             val next = getCurrent()
-                            throwUnexpectedTokenIf(next) { it !in DecimalOrSignConstraints }
+                            throwUnexpectedTokenIf(next) { !it.isDecimalOrSign() }
                             builder.append(current).append(next)
                             isExponent = true
                             if (next == '-') {
@@ -630,12 +628,12 @@ internal class TomlElementParser(
                     proceed()
                 }
                 '_' -> {
-                    throwUnexpectedTokenIf(current) { getPrevious() !in HexadecimalConstraints }
+                    throwUnexpectedTokenIf(current) { !getPrevious().isHexDigit() }
                     proceed()
                     throwIncompleteIf { isEof }
                     // Urge check.
                     val next = getCurrent()
-                    throwUnexpectedTokenIf(next) { it !in HexadecimalConstraints }
+                    throwUnexpectedTokenIf(next) { !it.isHexDigit() }
                 }
                 else -> {
                     throwUnexpectedToken(current)
@@ -679,7 +677,7 @@ internal class TomlElementParser(
                         break
                     }
                 }
-                in DecimalConstraints -> {
+                in '0'..'9' -> {
                     builder.append(current)
                     proceed()
                 }
