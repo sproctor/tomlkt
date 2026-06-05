@@ -242,7 +242,9 @@ internal fun createNumberTomlLiteral(
     isDouble: Boolean,
     isExponent: Boolean
 ): TomlLiteral {
-    if (isDouble) {
+    // A number carrying an exponent is always a float, even without a
+    // fractional part: `3e2` is the float 300.0, not the integer 300.
+    if (isDouble || isExponent) {
         var factor = if (isPositive) 1.0 else -1.0
         if (isExponent) {
             val strings = content.split('e', ignoreCase = true)
@@ -251,12 +253,7 @@ internal fun createNumberTomlLiteral(
         }
         return TomlLiteral(content.toDouble() * factor)
     }
-    var factor = if (isPositive) 1L else -1L
-    if (isExponent) {
-        val strings = content.split('e', ignoreCase = true)
-        factor *= 10.0.pow(strings[1].toInt()).toLong()
-        return TomlLiteral(strings[0].toLong(radix) * factor)
-    }
+    val factor = if (isPositive) 1L else -1L
     val long = content.toLongOrNull(radix)
     if (long == null) {
         if (isPositive) {

@@ -489,18 +489,17 @@ internal class TomlElementParser(
                 val content = if (sign == null) "0" else sign.toString() + "0"
                 return TomlLiteral(content, Type.Integer)
             }
-            when (getCurrent()) {
-                'x' -> {
+            when (val current = getCurrent()) {
+                'x', 'b', 'o' -> {
+                    // A leading sign is not allowed on hex/octal/binary integers.
+                    throwUnexpectedTokenIf(current) { sign != null }
+                    val radix = when (current) {
+                        'x' -> 16
+                        'b' -> 2
+                        else -> 8
+                    }
                     proceed()
-                    return parseNumberValue(builder, radix = 16, sign)
-                }
-                'b' -> {
-                    proceed()
-                    return parseNumberValue(builder, radix = 2, sign)
-                }
-                'o' -> {
-                    proceed()
-                    return parseNumberValue(builder, radix = 8, sign)
+                    return parseNumberValue(builder, radix, sign)
                 }
                 else -> {
                     builder.append('0')
