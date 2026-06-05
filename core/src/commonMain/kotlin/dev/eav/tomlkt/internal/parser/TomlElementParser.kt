@@ -970,6 +970,33 @@ internal class TomlElementParser private constructor(
         }
         var justEnded = false
         while (!isEof) {
+            // Fast path: when the input is in memory, bulk-copy a run of plain
+            // content characters at once. A literal string has no escapes, so
+            // only the delimiter, line breaks and control characters stop it.
+            val src = source
+            if (src != null) {
+                val begin = sourceIndex - 1
+                var end = begin
+                while (end < sourceLength) {
+                    val c = src[end]
+                    if (c == '\'' || c == '\r' || c == '\n' || c.isForbiddenControlChar()) {
+                        break
+                    }
+                    end++
+                }
+                if (end > begin) {
+                    builder.appendRange(src, begin, end)
+                    if (end < sourceLength) {
+                        previousChar = src[end - 1]
+                        currentChar = src[end]
+                        sourceIndex = end + 1
+                    } else {
+                        previousChar = src[sourceLength - 1]
+                        isEof = true
+                    }
+                    continue
+                }
+            }
             when (val current = getCurrent()) {
                 ' ', '\t' -> {
                     builder.append(current)
