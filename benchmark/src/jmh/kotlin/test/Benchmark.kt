@@ -38,12 +38,13 @@ object TomlObjects {
         invented_server_configuration    539 B  nested tables, string arrays, booleans
         yaml_invoice_example             651 B  mixed scalars, arrays-of-tables, multiline literals
         content_heavy                 18971 B  large input, multiline basic string throughput
+        escape_heavy                  13510 B  large basic string dense with escape sequences
 
     Run a single sample with, e.g., `-p sample=content_heavy`.
  */
 @BenchmarkMode(Mode.AverageTime)
-@Warmup(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 10, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 5, time = 2, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5, time = 2, timeUnit = TimeUnit.SECONDS)
 @Threads(4)
 @Fork(1)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -53,6 +54,7 @@ class Benchmark {
         "invented_server_configuration",
         "yaml_invoice_example",
         "content_heavy",
+        "escape_heavy",
     )
     lateinit var sample: String
 
