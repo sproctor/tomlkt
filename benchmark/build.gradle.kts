@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.allopen)
     alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.kotlin.serialization)
 
     alias(libs.plugins.jmh)
 }
@@ -12,6 +13,7 @@ dependencies {
 
     // tomlkt
     jmh(project(":core"))
+    jmh(libs.kotlinx.serialization.core)
     // toml4j
     jmh(libs.toml4j)
     // ktoml
@@ -27,7 +29,9 @@ dependencies {
 }
 
 jmh {
-    includes.set(listOf("test.Benchmark"))
+    // Both the decoding benchmark (test.DecodeBenchmark) and the encoding
+    // benchmark (test.EncodeBenchmark) live in the `test` package.
+    includes.set(listOf("test.DecodeBenchmark", "test.EncodeBenchmark"))
 }
 
 // Always re-run the benchmark: its inputs rarely change, but cached results

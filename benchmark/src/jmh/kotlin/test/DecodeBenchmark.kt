@@ -31,17 +31,25 @@ object TomlObjects {
 
 /*
     Parsing benchmark over a representative subset of the eno-lang sample corpus
-    (https://github.com/eno-lang/benchmarks/tree/main/samples). The TOML files
-    live in src/jmh/resources/samples and are selected through the `sample`
-    parameter. Three samples are kept, each covering a distinct parser workload:
+    (https://github.com/eno-lang/benchmarks/tree/main/samples). Each @Benchmark
+    measures parsing one TOML file to its in-memory tree (for tomlkt, that is
+    Toml.parseToTomlTable) and compares tomlkt against other JVM TOML libraries
+    (jackson, night-config, toml4j; ktoml and tomlj are disabled below because
+    they are an order of magnitude slower and dominate the run).
+
+    The TOML files live in src/jmh/resources/samples and are selected through
+    the `sample` @Param. Five samples exist, each covering a distinct parser
+    workload, but only the first three run by default to keep a full run fast:
 
         invented_server_configuration    539 B  nested tables, string arrays, booleans
         yaml_invoice_example             651 B  mixed scalars, arrays-of-tables, multiline literals
         content_heavy                 18971 B  large input, multiline basic string throughput
-        escape_heavy                  13510 B  large basic string dense with escape sequences
-        literal_heavy                 18971 B  large multiline literal string throughput
+        escape_heavy                  13510 B  large basic string dense with escape sequences   (opt-in)
+        literal_heavy                 18971 B  large multiline literal string throughput        (opt-in)
 
-    Run a single sample with, e.g., `-p sample=content_heavy`.
+    The two heavy string samples are commented out in the @Param list below;
+    uncomment either to include it. Run a single sample with, e.g.,
+    `-p sample=content_heavy`.
  */
 @BenchmarkMode(Mode.AverageTime)
 @Warmup(iterations = 5, time = 2, timeUnit = TimeUnit.SECONDS)
@@ -50,7 +58,7 @@ object TomlObjects {
 @Fork(1)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
-class Benchmark {
+class DecodeBenchmark {
     @Param(
         "invented_server_configuration",
         "yaml_invoice_example",

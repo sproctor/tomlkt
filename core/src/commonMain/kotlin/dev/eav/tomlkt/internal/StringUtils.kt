@@ -96,6 +96,23 @@ internal fun String.doubleQuotedIfNotPure(): String {
     return if (BareKeyRegex matches this) this else doubleQuoted
 }
 
+// A key that can be written bare: non-empty and every character is a bare-key
+// character. Lets the writer skip the escape + regex that quoting requires for
+// the overwhelmingly common case of an already-bare key (see writeKey). A bare
+// key never contains a character that escaping would change, so this is exactly
+// the set the former `escape().doubleQuotedIfNotPure()` left unquoted.
+internal fun String.isBareKey(): Boolean {
+    if (isEmpty()) {
+        return false
+    }
+    for (c in this) {
+        if (c !in BareKeyConstraints) {
+            return false
+        }
+    }
+    return true
+}
+
 internal fun Char.escape(multiline: Boolean = false): String {
     return when {
         code >= 128 -> toString()
@@ -108,12 +125,48 @@ internal fun Char.escape(multiline: Boolean = false): String {
     }
 }
 
-internal fun String.escape(multiline: Boolean = false): String {
-    val builder = StringBuilder()
-    for (c in this) {
-        builder.append(c.escape(multiline))
+// True when [Char.escape] would render this character as something other than
+// itself, i.e. the character needs an escape sequence. Mirrors the cases in
+// [Char.escape] exactly: a non-multiline string escapes every control character
+// (code < 0x20) plus the quote and backslash; a multiline string keeps tab,
+// line feed and carriage return literal, so only the remaining control
+// characters (plus quote and backslash) are escaped.
+private fun Char.needsEscape(multiline: Boolean): Boolean {
+    return if (!multiline) {
+        code < 0x20 || this == '\"' || this == '\\'
+    } else {
+        this == '\\' || this == '\"' || (code < 0x20 && this != '\t' && this != '\n' && this != '\r')
     }
-    return builder.toString()
+}
+
+internal fun String.escape(multiline: Boolean = false): String {
+    // Single pass, one needsEscape check per character. The builder is created
+    // only once the first character that needs escaping is seen; until then the
+    // string is its own escaped form, so a string that needs no escaping at all
+    // (the common case for keys and plain values) is returned without
+    // allocating anything. Plain runs between escapes are bulk-copied rather
+    // than appended one String per char.
+    val length = length
+    var builder: StringBuilder? = null
+    var runStart = 0
+    var i = 0
+    while (i < length) {
+        val c = this[i]
+        if (c.needsEscape(multiline)) {
+            val target = builder ?: StringBuilder(length + 16).also { builder = it }
+            if (i > runStart) {
+                target.appendRange(this, runStart, i)
+            }
+            target.append(c.escape(multiline))
+            runStart = i + 1
+        }
+        i++
+    }
+    val target = builder ?: return this
+    if (runStart < length) {
+        target.appendRange(this, runStart, length)
+    }
+    return target.toString()
 }
 
 // Only called once an escape is known to be present (see parseStringValue), so
