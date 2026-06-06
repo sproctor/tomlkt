@@ -14,8 +14,8 @@ dependencies {
     // tomlkt
     jmh(project(":core"))
     jmh(libs.kotlinx.serialization.core)
-    // toml4j
-    jmh(libs.toml4j)
+    // toml-java (parse only)
+    jmh(libs.toml.java)
     // ktoml
     jmh(libs.ktoml.core)
     // jackson

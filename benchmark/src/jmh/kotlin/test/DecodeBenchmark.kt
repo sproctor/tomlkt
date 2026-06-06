@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Thread)
 object TomlObjects {
     val tomlkt = dev.eav.tomlkt.Toml
-    val toml4j = com.moandjiezana.toml.Toml()
     val ktoml = com.akuleshov7.ktoml.Toml
     val jackson = com.fasterxml.jackson.dataformat.toml.TomlMapper().apply {
         registerKotlinModule()
@@ -34,8 +33,8 @@ object TomlObjects {
     (https://github.com/eno-lang/benchmarks/tree/main/samples). Each @Benchmark
     measures parsing one TOML file to its in-memory tree (for tomlkt, that is
     Toml.parseToTomlTable) and compares tomlkt against other JVM TOML libraries
-    (jackson, night-config, toml4j; ktoml and tomlj are disabled below because
-    they are an order of magnitude slower and dominate the run).
+    (jackson, night-config, toml-java; ktoml and tomlj are disabled below
+    because they are an order of magnitude slower and dominate the run).
 
     The TOML files live in src/jmh/resources/samples and are selected through
     the `sample` @Param. Five samples exist, each covering a distinct parser
@@ -84,8 +83,8 @@ class DecodeBenchmark {
     }
 
     @Benchmark
-    fun toml4j(hole: Blackhole) {
-        hole.consume(TomlObjects.toml4j.read(content))
+    fun tomljava(hole: Blackhole) {
+        hole.consume(net.vieiro.toml.TOMLParser.parseFromString(content))
     }
 
     // Disabled: ktoml is an order of magnitude slower and dominates run time.

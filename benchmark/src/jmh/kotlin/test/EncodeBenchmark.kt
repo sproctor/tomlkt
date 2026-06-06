@@ -23,11 +23,10 @@ import java.util.concurrent.TimeUnit
 // region Models
 
 // The serializable models the encode benchmark renders. They are plain Kotlin
-// data classes so the same instance can be handed to every library: tomlkt and
-// ktoml read the generated `.serializer()`, jackson reads them through its
-// Kotlin module, and toml4j reflects over their backing fields. The shapes
-// mirror the parsing benchmark's samples so the two halves stress comparable
-// structure.
+// data classes so the same instance can be handed to every library: tomlkt
+// reads the generated `.serializer()` and jackson reads them through its Kotlin
+// module. The shapes mirror the parsing benchmark's samples so the two halves
+// stress comparable structure.
 
 @Serializable
 data class ServerConf(val ruby: Boolean, val python: Boolean, val clean: Boolean)
@@ -102,17 +101,17 @@ object EncodeObjects {
         registerKotlinModule()
         registerModule(JavaTimeModule())
     }
-    val toml4j = com.moandjiezana.toml.TomlWriter()
 }
 
 /*
-    Encoding counterpart to the parsing DecodeBenchmark. Each @Benchmark serializes one
-    in-memory model (for tomlkt, Toml.encodeToString) to a TOML string and
-    compares tomlkt against the libraries whose writers accept a plain Kotlin
-    object: jackson (TomlMapper.writeValueAsString) and toml4j (TomlWriter.write).
+    Encoding counterpart to the parsing DecodeBenchmark. Each @Benchmark
+    serializes one in-memory model (for tomlkt, Toml.encodeToString) to a TOML
+    string and compares tomlkt against jackson (TomlMapper.writeValueAsString),
+    the only other library here whose writer accepts a plain Kotlin object.
     night-config is omitted because its writer consumes a hand-built Config
-    rather than a POJO, and ktoml/tomlj because they are an order of magnitude
-    slower (as in the parsing benchmark).
+    rather than a POJO; toml-java (used in DecodeBenchmark) is parse-only with no
+    writer; and ktoml/tomlj are an order of magnitude slower (as in the parsing
+    benchmark).
 
     The model is chosen through the `sample` @Param, each a distinct emit
     workload mirroring a parsing sample:
@@ -142,7 +141,6 @@ class EncodeBenchmark {
 
     private lateinit var tomlktEncode: () -> String
     private lateinit var jacksonEncode: () -> String
-    private lateinit var toml4jEncode: () -> String
 
     @Setup
     fun selectSample() {
@@ -151,19 +149,16 @@ class EncodeBenchmark {
                 val model = Samples.config
                 tomlktEncode = { EncodeObjects.tomlkt.encodeToString(ServerConfig.serializer(), model) }
                 jacksonEncode = { EncodeObjects.jackson.writeValueAsString(model) }
-                toml4jEncode = { EncodeObjects.toml4j.write(model) }
             }
             "content" -> {
                 val model = Samples.content
                 tomlktEncode = { EncodeObjects.tomlkt.encodeToString(Document.serializer(), model) }
                 jacksonEncode = { EncodeObjects.jackson.writeValueAsString(model) }
-                toml4jEncode = { EncodeObjects.toml4j.write(model) }
             }
             "wide" -> {
                 val model = Samples.wide
                 tomlktEncode = { EncodeObjects.tomlkt.encodeToString(Invoice.serializer(), model) }
                 jacksonEncode = { EncodeObjects.jackson.writeValueAsString(model) }
-                toml4jEncode = { EncodeObjects.toml4j.write(model) }
             }
             else -> error("unknown sample: $sample")
         }
@@ -177,10 +172,5 @@ class EncodeBenchmark {
     @Benchmark
     fun jackson(hole: Blackhole) {
         hole.consume(jacksonEncode())
-    }
-
-    @Benchmark
-    fun toml4j(hole: Blackhole) {
-        hole.consume(toml4jEncode())
     }
 }
