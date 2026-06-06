@@ -101,17 +101,18 @@ object EncodeObjects {
         registerKotlinModule()
         registerModule(JavaTimeModule())
     }
+    val ktoml = com.akuleshov7.ktoml.Toml
 }
 
 /*
     Encoding counterpart to the parsing DecodeBenchmark. Each @Benchmark
     serializes one in-memory model (for tomlkt, Toml.encodeToString) to a TOML
-    string and compares tomlkt against jackson (TomlMapper.writeValueAsString),
-    the only other library here whose writer accepts a plain Kotlin object.
-    night-config is omitted because its writer consumes a hand-built Config
-    rather than a POJO; toml-java (used in DecodeBenchmark) is parse-only with no
-    writer; and ktoml/tomlj are an order of magnitude slower (as in the parsing
-    benchmark).
+    string and compares tomlkt against jackson (TomlMapper.writeValueAsString)
+    and ktoml. ktoml is the other kotlinx.serialization TOML format -- and so
+    tomlkt's closest peer -- but is an order of magnitude slower, so expect a
+    wide spread in the results. night-config is omitted because its writer
+    consumes a hand-built Config rather than a POJO; tomlj is parse-only with no
+    writer at all.
 
     The model is chosen through the `sample` @Param, each a distinct emit
     workload mirroring a parsing sample:
@@ -141,6 +142,7 @@ class EncodeBenchmark {
 
     private lateinit var tomlktEncode: () -> String
     private lateinit var jacksonEncode: () -> String
+    private lateinit var ktomlEncode: () -> String
 
     @Setup
     fun selectSample() {
@@ -149,16 +151,19 @@ class EncodeBenchmark {
                 val model = Samples.config
                 tomlktEncode = { EncodeObjects.tomlkt.encodeToString(ServerConfig.serializer(), model) }
                 jacksonEncode = { EncodeObjects.jackson.writeValueAsString(model) }
+                ktomlEncode = { EncodeObjects.ktoml.encodeToString(ServerConfig.serializer(), model) }
             }
             "content" -> {
                 val model = Samples.content
                 tomlktEncode = { EncodeObjects.tomlkt.encodeToString(Document.serializer(), model) }
                 jacksonEncode = { EncodeObjects.jackson.writeValueAsString(model) }
+                ktomlEncode = { EncodeObjects.ktoml.encodeToString(Document.serializer(), model) }
             }
             "wide" -> {
                 val model = Samples.wide
                 tomlktEncode = { EncodeObjects.tomlkt.encodeToString(Invoice.serializer(), model) }
                 jacksonEncode = { EncodeObjects.jackson.writeValueAsString(model) }
+                ktomlEncode = { EncodeObjects.ktoml.encodeToString(Invoice.serializer(), model) }
             }
             else -> error("unknown sample: $sample")
         }
@@ -172,5 +177,10 @@ class EncodeBenchmark {
     @Benchmark
     fun jackson(hole: Blackhole) {
         hole.consume(jacksonEncode())
+    }
+
+    @Benchmark
+    fun ktoml(hole: Blackhole) {
+        hole.consume(ktomlEncode())
     }
 }

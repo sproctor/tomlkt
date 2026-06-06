@@ -7,7 +7,6 @@ junit = "5.14.4"
 
 # Benchmark-only libraries
 jmh = "1.37"
-tomlJava = "13.5.1"
 ktoml = "0.7.1"
 jackson = "2.22.0"
 nightConfig = "3.8.4"
@@ -31,7 +30,6 @@ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", vers
 # Benchmark-only libraries
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
-toml-java = { module = "net.vieiro:toml-java", version.ref = "tomlJava" }
 ktoml-core = { module = "com.akuleshov7:ktoml-core", version.ref = "ktoml" }
 jackson-dataformat-toml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-toml", version.ref = "jackson" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }

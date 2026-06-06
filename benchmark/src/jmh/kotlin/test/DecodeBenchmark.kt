@@ -32,9 +32,9 @@ object TomlObjects {
     Parsing benchmark over a representative subset of the eno-lang sample corpus
     (https://github.com/eno-lang/benchmarks/tree/main/samples). Each @Benchmark
     measures parsing one TOML file to its in-memory tree (for tomlkt, that is
-    Toml.parseToTomlTable) and compares tomlkt against other JVM TOML libraries
-    (jackson, night-config, toml-java; ktoml and tomlj are disabled below
-    because they are an order of magnitude slower and dominate the run).
+    Toml.parseToTomlTable) and compares tomlkt against other JVM TOML libraries:
+    jackson, night-config, ktoml and tomlj. ktoml and tomlj are an order of
+    magnitude slower than the rest, so expect a wide spread in the results.
 
     The TOML files live in src/jmh/resources/samples and are selected through
     the `sample` @Param. Five samples exist, each covering a distinct parser
@@ -83,12 +83,6 @@ class DecodeBenchmark {
     }
 
     @Benchmark
-    fun tomljava(hole: Blackhole) {
-        hole.consume(net.vieiro.toml.TOMLParser.parseFromString(content))
-    }
-
-    // Disabled: ktoml is an order of magnitude slower and dominates run time.
-    // @Benchmark
     fun ktoml(hole: Blackhole) {
         hole.consume(TomlObjects.ktoml.tomlParser.parseString(content))
     }
@@ -103,8 +97,7 @@ class DecodeBenchmark {
         hole.consume(TomlObjects.night.parse(content))
     }
 
-    // Disabled: tomlj is an order of magnitude slower and dominates run time.
-    // @Benchmark
+    @Benchmark
     fun tomlj(hole: Blackhole) {
         hole.consume(org.tomlj.Toml.parse(content))
     }
