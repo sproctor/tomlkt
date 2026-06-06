@@ -29,9 +29,11 @@ dependencies {
 }
 
 jmh {
-    // Both the decoding benchmark (test.DecodeBenchmark) and the encoding
-    // benchmark (test.EncodeBenchmark) live in the `test` package.
-    includes.set(listOf("test.DecodeBenchmark", "test.EncodeBenchmark"))
+    // Run both the decoding (test.DecodeBenchmark) and encoding
+    // (test.EncodeBenchmark) benchmarks. A single regex matching either class is
+    // used rather than a list: the jmh plugin intersects multiple include
+    // patterns, so listing both classes would match nothing.
+    includes.set(listOf("test\\..*Benchmark"))
 }
 
 // Always re-run the benchmark: its inputs rarely change, but cached results
