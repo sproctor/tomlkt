@@ -68,11 +68,10 @@ internal object BareKeyConstraints {
 }
 
 internal val AsciiMapping: List<String> = buildList(128) {
-    for (i in 0x00..0x0f) {
-        add(i, "\\u000$i")
-    }
-    for (i in 0x10..0x1f) {
-        add(i, "\\u00$i")
+    for (i in 0x00..0x1f) {
+        // Zero-padded four-digit hex. The old code interpolated the Int in
+        // decimal, so ESC (0x1b) wrongly became the escape backslash-u-0027.
+        add(i, "\\u" + i.toString(16).padStart(4, '0'))
     }
     for (i in 0x20..0x7f) {
         add(i, i.toChar().toString())
@@ -84,6 +83,8 @@ internal val AsciiMapping: List<String> = buildList(128) {
     set('\r'.code, "\\r")
     set('\"'.code, "\\\"")
     set('\\'.code, "\\\\")
+    // DEL is a control character that a basic string must escape.
+    set(0x7f, "\\u007f")
 }
 
 internal inline val String.singleQuoted: String
@@ -130,12 +131,13 @@ internal fun Char.escape(multiline: Boolean = false): String {
 // [Char.escape] exactly: a non-multiline string escapes every control character
 // (code < 0x20) plus the quote and backslash; a multiline string keeps tab,
 // line feed and carriage return literal, so only the remaining control
-// characters (plus quote and backslash) are escaped.
+// characters (plus quote and backslash) are escaped. DEL (0x7f) is a control
+// character too and is escaped in both modes.
 private fun Char.needsEscape(multiline: Boolean): Boolean {
     return if (!multiline) {
-        code < 0x20 || this == '\"' || this == '\\'
+        code < 0x20 || code == 0x7f || this == '\"' || this == '\\'
     } else {
-        this == '\\' || this == '\"' || (code < 0x20 && this != '\t' && this != '\n' && this != '\r')
+        this == '\\' || this == '\"' || code == 0x7f || (code < 0x20 && this != '\t' && this != '\n' && this != '\r')
     }
 }
 

@@ -32,7 +32,11 @@ import kotlin.system.exitProcess
  */
 fun main(args: Array<String>) {
     val mode = args.firstOrNull() ?: "decode"
-    val input = System.`in`.readBytes().decodeToString()
+    // Decode strictly: invalid UTF-8 (and surrogate code points like U+D800,
+    // which TOML forbids) must be rejected, so throw rather than substitute the
+    // Unicode replacement character. This is what the toml-test encoding/* cases
+    // exercise -- the byte/string boundary is the harness's responsibility.
+    val input = System.`in`.readBytes().decodeToString(throwOnInvalidSequence = true)
     try {
         when (mode) {
             "decode" -> {

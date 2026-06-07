@@ -34,7 +34,16 @@ internal sealed class TreeNode(val key: String) {
 
 internal class KeyNode(
     key: String,
-    val isLast: Boolean
+    // True for a table that is "complete": a [table] header leaf, or any table
+    // created by dotted keys. False for a super-table created implicitly as an
+    // intermediate segment of a header path (e.g. `a` in `[a.b]`), which may
+    // still be promoted to a real table by a later `[a]` header. Mutable so that
+    // such a promotion -- and the rejection of a second one -- can be tracked.
+    var isLast: Boolean,
+    // True when this node was created by dotted keys rather than a table header.
+    // A dotted-key suffix may extend its own dotted-key tables but must not reach
+    // into a table (or array) that a header defined.
+    val byDottedKey: Boolean = false
 ) : TreeNode(key) {
     val children: MutableMap<String, TreeNode> = mutableMapOf()
 
@@ -101,9 +110,14 @@ internal fun KeyNode.addByPath(
     path: Path,
     node: TreeNode,
     arrayOfTableIndices: Map<Path, Int>?,
-    annotations: List<Annotation> = emptyList()
+    annotations: List<Annotation> = emptyList(),
+    // The first index of [path] that comes from a dotted key rather than a table
+    // header. For a `[table]` header the whole path is the header, so this is
+    // [path].size (no suffix). For a key/value the header part is the enclosing
+    // table's path and the dotted key is the suffix beyond it.
+    suffixStart: Int = path.size
 ): Boolean {
-    return addByPathRecursively(path, node, arrayOfTableIndices, annotations, 0)
+    return addByPathRecursively(path, node, arrayOfTableIndices, annotations, suffixStart, 0)
 }
 
 private tailrec fun KeyNode.addByPathRecursively(
@@ -111,6 +125,7 @@ private tailrec fun KeyNode.addByPathRecursively(
     node: TreeNode,
     arrayOfTableIndices: Map<Path, Int>?,
     annotations: List<Annotation>,
+    suffixStart: Int,
     index: Int
 ): Boolean {
     val child = get(path[index])
@@ -126,27 +141,45 @@ private tailrec fun KeyNode.addByPathRecursively(
             node !is KeyNode -> {
                 false
             }
-            else -> {
-                // If false, this table is a super-table after a sub-table.
-                child.isLast.not()
+            child.isLast -> {
+                // The table already exists as a real (non-super) table, so this
+                // header would define it a second time.
+                false
             }
+            else -> {
+                // Promote the implicit super-table to a real one; a further
+                // attempt to define it will now be rejected above.
+                child.isLast = true
+                true
+            }
+        }
+    }
+    // Within the dotted-key suffix, a key may extend tables it created itself but
+    // must not reach into a table or array of tables that a header defined.
+    if (index >= suffixStart && child != null) {
+        if (child is ArrayNode || (child is KeyNode && !child.byDottedKey)) {
+            return false
         }
     }
     return when (child) {
         null -> {
-            val intermediate = KeyNode(path[index], isLast = node is ValueNode)
+            val intermediate = KeyNode(
+                path[index],
+                isLast = node is ValueNode,
+                byDottedKey = index >= suffixStart
+            )
             add(intermediate)
-            intermediate.addByPathRecursively(path, node, arrayOfTableIndices, annotations, index + 1)
+            intermediate.addByPathRecursively(path, node, arrayOfTableIndices, annotations, suffixStart, index + 1)
         }
         is KeyNode -> {
-            child.addByPathRecursively(path, node, arrayOfTableIndices, annotations, index + 1)
+            child.addByPathRecursively(path, node, arrayOfTableIndices, annotations, suffixStart, index + 1)
         }
         is ArrayNode -> {
             check(arrayOfTableIndices != null)
             val currentPath = path.subList(0, index + 1)
             val childIndex = arrayOfTableIndices[currentPath]!!
             val grandChild = child[childIndex]
-            grandChild.addByPathRecursively(path, node, arrayOfTableIndices, annotations, index + 1)
+            grandChild.addByPathRecursively(path, node, arrayOfTableIndices, annotations, suffixStart, index + 1)
         }
         is ValueNode -> {
             false

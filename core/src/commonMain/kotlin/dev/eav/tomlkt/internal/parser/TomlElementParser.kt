@@ -168,6 +168,39 @@ internal class TomlElementParser private constructor(
         }
     }
 
+    // After a table head only trailing whitespace and an optional inline comment
+    // may follow before the line ends; anything else (e.g. another key on the
+    // same line) is invalid. The inline comment, if any, is recorded so that
+    // [takeEntryAnnotations] can attach it to the table head.
+    private fun expectLineEnd() {
+        lastInlineComment = null
+        while (!isEof) {
+            when (val current = getCurrent()) {
+                ' ', '\t' -> {
+                    proceed()
+                }
+                '\n' -> {
+                    currentLineNumber++
+                    proceed()
+                    return
+                }
+                '\r' -> {
+                    proceed()
+                    throwUnexpectedTokenIf(current) { isEof || getCurrent() != '\n' }
+                    currentLineNumber++
+                    proceed()
+                    return
+                }
+                Comment -> {
+                    lastInlineComment = parseComment()
+                }
+                else -> {
+                    throwUnexpectedToken(current)
+                }
+            }
+        }
+    }
+
     // endregion
 
     fun parse(): TomlTable {
@@ -195,8 +228,12 @@ internal class TomlElementParser private constructor(
                     val key = localPath.last()
                     val value = parseValue(isInsideStructure = false)
                     val node = ValueNode(key, value)
+                    // The enclosing table's path is the header prefix; localPath
+                    // is the dotted-key suffix that may not extend header-defined
+                    // tables.
+                    val suffixStart = currentTablePath?.size ?: 0
                     val path = if (currentTablePath != null) currentTablePath + localPath else localPath
-                    if (tree.addByPath(path, node, arrayOfTableIndices, takeEntryAnnotations(value)).not()) {
+                    if (tree.addByPath(path, node, arrayOfTableIndices, takeEntryAnnotations(value), suffixStart).not()) {
                         throwConflictEntry(path)
                     }
                 }
@@ -214,6 +251,8 @@ internal class TomlElementParser private constructor(
                         proceed()
                     }
                     val path = parseTableHead(isArrayOfTable)
+                    // Only whitespace/comment may follow on the head's line.
+                    expectLineEnd()
                     // Comments collected above the table head attach to it.
                     val headAnnotations = takeEntryAnnotations(null)
                     if (!isArrayOfTable) {
@@ -391,14 +430,20 @@ internal class TomlElementParser private constructor(
      * Start right on the first '\"', end right after the last '\"'.
      */
     private fun parseStringKey(): String {
-        return parseStringValue().content
+        val content = parseStringValue().content
+        // A key is a single-line string: a multiline """...""" is not a valid key.
+        throwUnexpectedTokenIf('\"') { lastStringMultiline }
+        return content
     }
 
     /**
      * Start right on the first '\'', end right after the last '\''.
      */
     private fun parseLiteralStringKey(): String {
-        return parseLiteralStringValue().content
+        val content = parseLiteralStringValue().content
+        // A key is a single-line string: a multiline '''...''' is not a valid key.
+        throwUnexpectedTokenIf('\'') { lastStringMultiline }
+        return content
     }
 
     /**
@@ -874,6 +919,12 @@ internal class TomlElementParser private constructor(
         }
         lastStringMultiline = multiline
         var trim = false
+        // A line-ending backslash followed by spaces/tabs (rather than an
+        // immediate newline) is only valid if those run all the way to a line
+        // break: any other content before the newline makes "\<space>" an
+        // invalid escape. While this is set, content before a newline is an
+        // error.
+        var requireNewlineBeforeContent = false
         var hasEscape = false
         var justEnded = false
         while (!isEof) {
@@ -917,6 +968,8 @@ internal class TomlElementParser private constructor(
                     if (!trim) {
                         builder.append(current)
                     }
+                    // The line break satisfies a pending line-ending backslash.
+                    requireNewlineBeforeContent = false
                     currentLineNumber++
                     proceed()
                 }
@@ -925,8 +978,13 @@ internal class TomlElementParser private constructor(
                     proceed()
                     throwIncompleteIf { isEof }
                     throwUnexpectedTokenIf(current) { getCurrent() != '\n' }
+                    // The CRLF satisfies a pending line-ending backslash.
+                    requireNewlineBeforeContent = false
                 }
                 '\"' -> {
+                    // A closing delimiter (or literal quote) is content, so it
+                    // cannot satisfy a pending line-ending backslash.
+                    throwUnexpectedTokenIf(current) { requireNewlineBeforeContent }
                     if (!multiline) {
                         justEnded = true
                         proceed()
@@ -951,12 +1009,21 @@ internal class TomlElementParser private constructor(
                     repeat(quoteCount) { builder.append('\"') }
                 }
                 '\\' -> {
+                    // A backslash escape is content; if a line-ending backslash
+                    // is still waiting for its newline this is invalid.
+                    throwUnexpectedTokenIf(current) { requireNewlineBeforeContent }
                     proceed()
                     throwIncompleteIf { isEof }
                     when (val next = getCurrent()) {
                         ' ', '\t', '\n', '\r' -> {
                             throwUnexpectedTokenIf(current) { !multiline }
                             trim = true
+                            // When the backslash is followed by spaces/tabs
+                            // rather than the newline itself, those must lead to
+                            // a line break before any further content.
+                            if (next == ' ' || next == '\t') {
+                                requireNewlineBeforeContent = true
+                            }
                         }
                         'n', '\"', '\\', 'u', 'U', 'x', 't', 'r', 'b', 'e', 'f' -> {
                             // 'x' (\xHH) and 'e' (\e) are TOML 1.1 additions.
@@ -971,6 +1038,9 @@ internal class TomlElementParser private constructor(
                 }
                 else -> {
                     throwUnexpectedTokenIf(current) { it.isForbiddenControlChar() }
+                    // Plain content cannot satisfy a pending line-ending
+                    // backslash either.
+                    throwUnexpectedTokenIf(current) { requireNewlineBeforeContent }
                     builder.append(current)
                     trim = false
                     proceed()
