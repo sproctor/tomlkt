@@ -19,6 +19,6 @@ jobs:
         uses: actions/setup-java@v5
         with:
           java-version: 17
-          distribution: corretto
+          distribution: temurin
       - name: Publish
         run: ./gradlew core:publishToMavenCentral --stacktrace
