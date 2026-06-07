@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
 
 env:
+  # Publishing group, supplied as a repo variable so the namespace is not
+  # committed (mirrors the local override in ~/.gradle/gradle.properties).
+  ORG_GRADLE_PROJECT_group: ${{ vars.MAVEN_GROUP }}
   ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_USERNAME }}
   ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_PASSWORD }}
   ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
@@ -21,4 +24,4 @@ jobs:
           java-version: 17
           distribution: temurin
       - name: Publish
-        run: ./gradlew core:publishToMavenCentral --stacktrace
+        run: ./gradlew core:publishAndReleaseToMavenCentral --stacktrace
