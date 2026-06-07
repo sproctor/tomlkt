@@ -2,6 +2,7 @@ package test
 
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import dev.eav.tomlkt.TomlStringReader
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Fork
@@ -80,6 +81,11 @@ class DecodeBenchmark {
     @Benchmark
     fun tomlkt(hole: Blackhole) {
         hole.consume(TomlObjects.tomlkt.parseToTomlTable(content))
+    }
+
+    @Benchmark
+    fun tomlktReader(hole: Blackhole) {
+        hole.consume(TomlObjects.tomlkt.parseToTomlTable(TomlStringReader(content)))
     }
 
     @Benchmark
