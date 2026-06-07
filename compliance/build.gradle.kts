@@ -42,19 +42,13 @@ val harnessLauncher = layout.buildDirectory.file("install/compliance/bin/complia
 
 val tomlVersion = (findProperty("tomlVersion") as String?) ?: "1.1"
 
-// Known tomlkt gaps the v2 suite exercises but that are not fixed yet: the
-// parser accepts a few malformed inputs and rejects comments inside inline
-// tables. Skipped so the suite stays green; drop an entry once it is fixed.
-val pendingComplianceGaps = listOf(
-    "valid/inline-table/newline-comment",        // # comments inside inline tables
-    "invalid/datetime/offset-minus-no-minute",   // numeric offset with no minutes
-    "invalid/datetime/offset-plus-no-minute",
-    "invalid/datetime/second-trailing-dot",      // trailing '.' with no fraction
-    "invalid/datetime/second-trailing-dotz",
-    "invalid/local-time/trailing-dot",
-    "invalid/float/trailing-exp-minus",          // exponent sign with no digits
-    "invalid/float/trailing-exp-plus",
-)
+// Known tomlkt gaps the v2 suite still reports as failures (the task exits
+// non-zero until they are fixed):
+//   valid/inline-table/newline-comment        - # comments inside inline tables
+//   invalid/datetime/offset-{plus,minus}-no-minute - offset hour with no minutes
+//   invalid/datetime/second-trailing-dot{,z}   - trailing '.' with no fraction
+//   invalid/local-time/trailing-dot            - trailing '.' with no fraction
+//   invalid/float/trailing-exp-{plus,minus}    - exponent sign with no digits
 
 fun resolveTomlTest(): String {
     (findProperty("tomlTest") as String?)?.let { return it }
@@ -95,7 +89,6 @@ fun testCommand(withEncoder: Boolean): List<String> {
             add("-encoder"); add("$launcher encode")
         }
         add("-toml"); add(tomlVersion)
-        pendingComplianceGaps.forEach { add("-skip"); add(it) }
     }
 }
 

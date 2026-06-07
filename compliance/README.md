@@ -79,10 +79,9 @@ case with `-run`, e.g. `-run valid/datetime/local-time`.
 
 ## Current status (TOML 1.1)
 
-Against toml-test v2.2.0 the encoder suite is fully green (214/214) and the
-decoder passes every case **except** a handful of known tomlkt gaps that the
-Gradle tasks skip (`pendingComplianceGaps` in `build.gradle.kts`). Remove an
-entry from that list once the underlying gap is fixed:
+Against toml-test v2.2.0 the encoder suite is fully green (214/214). The decoder
+passes every case except a handful of known tomlkt gaps, which are **left to
+fail** — `complianceTest` exits non-zero until they are fixed:
 
 - `valid/inline-table/newline-comment` — the parser rejects `#` comments inside
   inline tables.
