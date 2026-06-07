@@ -42,14 +42,6 @@ val harnessLauncher = layout.buildDirectory.file("install/compliance/bin/complia
 
 val tomlVersion = (findProperty("tomlVersion") as String?) ?: "1.1"
 
-// Known tomlkt gaps the v2 suite still reports as failures (the task exits
-// non-zero until they are fixed):
-//   valid/inline-table/newline-comment        - # comments inside inline tables
-//   invalid/datetime/offset-{plus,minus}-no-minute - offset hour with no minutes
-//   invalid/datetime/second-trailing-dot{,z}   - trailing '.' with no fraction
-//   invalid/local-time/trailing-dot            - trailing '.' with no fraction
-//   invalid/float/trailing-exp-{plus,minus}    - exponent sign with no digits
-
 fun resolveTomlTest(): String {
     (findProperty("tomlTest") as String?)?.let { return it }
     System.getenv("TOML_TEST")?.let { return it }

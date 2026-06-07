@@ -739,6 +739,15 @@ internal class TomlElementParser private constructor(
                             if (next == '-') {
                                 isDouble = true
                             }
+                            if (next == '+' || next == '-') {
+                                // A sign must be followed by at least one digit;
+                                // "1e+" / "1e-" are not valid exponents.
+                                proceed()
+                                throwIncompleteIf { isEof }
+                                val digit = getCurrent()
+                                throwUnexpectedTokenIf(digit) { !it.isDecimalDigit() }
+                                builder.append(digit)
+                            }
                         }
                         16 -> {
                             builder.append(current)
@@ -820,11 +829,12 @@ internal class TomlElementParser private constructor(
                 '-' -> {
                     if (!hasTime) {
                         hasDate = true
+                        builder.append(current)
+                        proceed()
                     } else {
+                        appendNumericOffset(builder, current)
                         hasOffset = true
                     }
-                    builder.append(current)
-                    proceed()
                 }
                 'T', 't' -> {
                     hasDateTimeSeparator = true
@@ -832,15 +842,17 @@ internal class TomlElementParser private constructor(
                     proceed()
                 }
                 ':' -> {
-                    if (!hasOffset) {
-                        hasTime = true
-                    }
+                    hasTime = true
                     builder.append(current)
                     proceed()
                 }
                 '.' -> {
+                    // The fractional-second dot must be followed by a digit, so
+                    // "09:09:09." and "09:09:09.Z" are rejected.
                     builder.append(current)
                     proceed()
+                    throwIncompleteIf { isEof }
+                    throwUnexpectedTokenIf(getCurrent()) { !it.isDecimalDigit() }
                 }
                 'Z', 'z' -> {
                     hasOffset = true
@@ -848,9 +860,8 @@ internal class TomlElementParser private constructor(
                     proceed()
                 }
                 '+' -> {
+                    appendNumericOffset(builder, current)
                     hasOffset = true
-                    builder.append(current)
-                    proceed()
                 }
                 else -> {
                     throwUnexpectedToken(current)
@@ -882,6 +893,29 @@ internal class TomlElementParser private constructor(
         }
         // Keeps the original text.
         return TomlLiteral(result, type)
+    }
+
+    // Consumes a numeric UTC offset of the exact form (+|-)HH:MM, starting on the
+    // [sign]. A bare-hour offset like "+09" (no minutes) is rejected.
+    private fun appendNumericOffset(builder: StringBuilder, sign: Char) {
+        builder.append(sign)
+        proceed()
+        appendTwoDigits(builder)
+        throwIncompleteIf { isEof }
+        throwUnexpectedTokenIf(getCurrent()) { it != ':' }
+        builder.append(':')
+        proceed()
+        appendTwoDigits(builder)
+    }
+
+    private fun appendTwoDigits(builder: StringBuilder) {
+        repeat(2) {
+            throwIncompleteIf { isEof }
+            val digit = getCurrent()
+            throwUnexpectedTokenIf(digit) { !it.isDecimalDigit() }
+            builder.append(digit)
+            proceed()
+        }
     }
 
     /**
@@ -1252,7 +1286,10 @@ internal class TomlElementParser private constructor(
                     proceed()
                 }
                 Comment -> {
-                    throwUnexpectedToken(current)
+                    // TOML 1.1 allows newlines inside inline tables, and so
+                    // comments wherever a newline may appear. The comment text
+                    // is not retained.
+                    parseComment()
                 }
                 else -> {
                     val localPath = parsePath()

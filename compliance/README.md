@@ -79,16 +79,5 @@ case with `-run`, e.g. `-run valid/datetime/local-time`.
 
 ## Current status (TOML 1.1)
 
-Against toml-test v2.2.0 the encoder suite is fully green (214/214). The decoder
-passes every case except a handful of known tomlkt gaps, which are **left to
-fail** — `complianceTest` exits non-zero until they are fixed:
-
-- `valid/inline-table/newline-comment` — the parser rejects `#` comments inside
-  inline tables.
-- Invalid inputs that the parser currently accepts but should reject:
-  - `invalid/datetime/offset-{plus,minus}-no-minute` — numeric offset with an
-    hour but no minutes (e.g. `…+09`).
-  - `invalid/datetime/second-trailing-dot{,z}`, `invalid/local-time/trailing-dot`
-    — a trailing `.` with no fractional digits.
-  - `invalid/float/trailing-exp-{plus,minus}` — an exponent sign with no digits
-    (e.g. `0.0e+`).
+Against toml-test v2.2.0 the whole suite is green: every `valid/`, `invalid/`,
+and encoder case passes (214 / 467 / 214).

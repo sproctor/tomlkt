@@ -121,4 +121,54 @@ class ComplianceFixesTest {
         assertEquals(1L, multiline.getInteger("a"))
         assertEquals(2L, multiline.getInteger("b"))
     }
+
+    // valid/inline-table/newline-comment: comments may appear wherever a newline
+    // may inside an inline table.
+    @Test
+    fun inlineTableComments() {
+        val nl = Char(0x0A)
+        val table = Toml.parseToTomlTable(
+            "x = {#c$nl  a = 1,#c$nl  #c$nl  b = 2,$nl}"
+        ).getTable("x")
+        assertEquals(1L, table.getInteger("a"))
+        assertEquals(2L, table.getInteger("b"))
+    }
+
+    // invalid/float/trailing-exp-{plus,minus}: an exponent sign needs a digit.
+    @Test
+    fun exponentSignWithoutDigitRejected() {
+        testInvalid("x = 0.0e+")
+        testInvalid("x = 0.0e-")
+        testInvalid("x = 1e+")
+    }
+
+    // invalid/datetime/second-trailing-dot{,z}, invalid/local-time/trailing-dot:
+    // a fractional-second dot needs at least one digit.
+    @Test
+    fun trailingFractionalDotRejected() {
+        testInvalid("x = 12:13:14.")
+        testInvalid("x = 1997-09-09T09:09:09.")
+        testInvalid("x = 2016-09-09T09:09:09.Z")
+    }
+
+    // invalid/datetime/offset-{plus,minus}-no-minute: a numeric offset must
+    // carry minutes, i.e. (+|-)HH:MM rather than a bare hour.
+    @Test
+    fun numericOffsetWithoutMinutesRejected() {
+        testInvalid("x = 1997-09-09T09:09:09.09+09")
+        testInvalid("x = 1997-09-09T09:09:09.09-09")
+    }
+
+    // The valid offset forms keep working.
+    @Test
+    fun numericOffsetWithMinutesAccepted() {
+        assertEquals(
+            TomlLiteral.Type.OffsetDateTime,
+            literal("x = 1997-09-09T09:09:09.09+09:30").type
+        )
+        assertEquals(
+            TomlLiteral.Type.OffsetDateTime,
+            literal("x = 1997-09-09T09:09:09Z").type
+        )
+    }
 }
