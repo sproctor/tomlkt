@@ -24,7 +24,30 @@ go install github.com/toml-lang/toml-test/cmd/toml-test@latest
 # the binary lands in $(go env GOPATH)/bin, usually ~/go/bin/toml-test
 ```
 
-## Build the harness
+## Run via Gradle (recommended)
+
+`complianceTest` builds the harness and runs the whole suite (decoder +
+encoder) against it:
+
+```bash
+./gradlew :compliance:complianceTest
+```
+
+`complianceDecode` and `complianceEncode` run a single direction. The encoder
+task skips four `valid/` cases that toml-test's own reference parser cannot
+decode (see [Current status](#current-status-toml-110)).
+
+Configure with project properties:
+
+- `-PtomlVersion=1.0.0` — TOML version to test (default `1.1.0`).
+- `-PtomlTest=/path/to/toml-test` — the runner. Otherwise resolved from
+  `$TOML_TEST`, then `~/go/bin/toml-test`, then `PATH`.
+
+```bash
+./gradlew :compliance:complianceTest -PtomlVersion=1.0.0
+```
+
+## Run toml-test manually
 
 `installDist` produces a launcher script under
 `build/install/compliance/bin/compliance`:
@@ -35,8 +58,6 @@ go install github.com/toml-lang/toml-test/cmd/toml-test@latest
 
 Re-run this after any change to `:core` or the harness so the launcher picks up
 the new classes.
-
-## Run the suite
 
 The harness takes the direction (`decode` / `encode`) as its first argument.
 Point toml-test at it and select the TOML version with `-toml`:
