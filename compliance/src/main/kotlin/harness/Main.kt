@@ -70,18 +70,38 @@ private fun tomlTestType(type: TomlLiteral.Type): String = when (type) {
     TomlLiteral.Type.LocalTime -> "time-local"
 }
 
-// toml-test expects floats spelled inf/-inf/nan, not the JVM's Infinity/NaN.
-private fun normalize(type: TomlLiteral.Type, content: String): String =
-    if (type == TomlLiteral.Type.Float) {
-        when (content) {
-            "Infinity", "+Infinity" -> "inf"
-            "-Infinity" -> "-inf"
-            "NaN", "-NaN" -> "nan"
-            else -> content
-        }
-    } else {
-        content
+// Canonicalize a literal's content for toml-test's JSON, which re-parses each
+// value with strict layouts.
+private fun normalize(type: TomlLiteral.Type, content: String): String = when (type) {
+    // Floats must be spelled inf/-inf/nan, not the JVM's Infinity/NaN.
+    TomlLiteral.Type.Float -> when (content) {
+        "Infinity", "+Infinity" -> "inf"
+        "-Infinity" -> "-inf"
+        "NaN", "-NaN" -> "nan"
+        else -> content
     }
+    // tomlkt preserves the original text, so a seconds-less time like "13:37"
+    // survives a round trip; toml-test requires seconds, so add ":00".
+    TomlLiteral.Type.LocalTime,
+    TomlLiteral.Type.LocalDateTime,
+    TomlLiteral.Type.OffsetDateTime -> content.withSeconds()
+    else -> content
+}
+
+// Insert ":00" seconds right after the HH:MM minutes when none are present,
+// leaving any fractional seconds, offset or "Z" suffix untouched.
+private fun String.withSeconds(): String {
+    val firstColon = indexOf(':')
+    if (firstColon < 0) {
+        return this
+    }
+    val afterMinute = firstColon + 3
+    val hasSeconds = afterMinute < length && this[afterMinute] == ':'
+    if (hasSeconds) {
+        return this
+    }
+    return substring(0, afterMinute) + ":00" + substring(afterMinute)
+}
 
 // -------- encode: tagged JSON -> TomlElement --------
 
