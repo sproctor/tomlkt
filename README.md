@@ -3,7 +3,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/dev.eav.tomlkt/tomlkt)](https://search.maven.org/artifact/dev.eav.tomlkt/tomlkt)
 [![License](https://img.shields.io/github/license/eav-eav-eav/tomlkt)](http://www.apache.org/licenses/LICENSE-2.0)
 
-Powerful and easy to use [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) plugin for [TOML 1.0.0 compliance](https://toml.io/en/v1.0.0)
+Powerful and easy to use [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) plugin for [TOML 1.1.0 compliance](https://toml.io/en/v1.1.0)
 encoding and decoding.
 
 *If you find any problem along usage, please raise an [issue](https://github.com/eav-eav-eav/tomlkt/issues).* :wink:
