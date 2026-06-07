@@ -4,7 +4,6 @@ import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinMultiplatform
 import io.gitlab.arturbosch.detekt.Detekt
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.jvm.tasks.KotlinJvmTest
 import java.net.URI
 
@@ -29,14 +28,11 @@ base.archivesName = archivesName
 
 kotlin {
     explicitApi()
+    jvmToolchain(8)
 
-    jvm {
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_1_8
-        }
-    }
+    jvm()
 
-    js(IR) {
+    js {
         browser()
         nodejs()
     }

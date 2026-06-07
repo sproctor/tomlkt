@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 // A throwaway harness that adapts tomlkt to the toml-test compliance suite
 // (https://github.com/toml-lang/toml-test). Not part of the published library.
 
@@ -21,8 +19,8 @@ application {
 }
 
 kotlin {
+    jvmToolchain(17)
     compilerOptions {
-        jvmTarget = JvmTarget.JVM_21
         optIn.add("dev.eav.tomlkt.TomlSpecific")
     }
 }
