@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-tomlkt is a [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) format plugin for TOML 1.0.0, published to Maven Central as `dev.eav.tomlkt:tomlkt`. It is a Kotlin Multiplatform library targeting JVM, JS (IR), Wasm/JS, and a wide range of Kotlin/Native targets (mingw, macos, ios, linux). The public package is `dev.eav.tomlkt`.
+tomlkt is a [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) format plugin for TOML 1.1.0 (it passes the [toml-test](https://github.com/toml-lang/toml-test) 1.1 conformance suite — see `:compliance`), published to Maven Central as `dev.eav.tomlkt:tomlkt`. It is a Kotlin Multiplatform library targeting JVM, JS (IR), Wasm/JS, and a wide range of Kotlin/Native targets (mingw, macos, ios, linux). The public package is `dev.eav.tomlkt`.
+
+There are three Gradle modules: `:core` (the publishable library), `:benchmark` (JMH-only), and `:compliance` (a throwaway JVM harness that runs `:core` against the toml-test suite — not published).
 
 ## Common Commands
 
@@ -28,7 +30,23 @@ Run a single test class/method via the JUnit platform filter (JVM target):
 
 Most tests live in `commonTest` and run on every target; `jvmTest` additionally covers stream I/O (`StreamTest`). When iterating, prefer `core:jvmTest` for speed, but run `core:allTests` before considering a change complete since platform-specific `actual` implementations differ.
 
-Docs are generated with Dokka (`./gradlew core:dokkaGenerate`, output in `docs/`).
+Docs are generated with Dokka (`./gradlew core:dokkaGenerate`, output in `docs/`). Note this regenerates the whole `docs/` tree — don't commit that churn unless intended (it also runs as a side effect of `core:publishToMavenLocal`, since the Javadoc jar is built with Dokka).
+
+### Conformance (the `:compliance` module)
+
+`:compliance` adapts `:core` to [toml-test](https://github.com/toml-lang/toml-test) **v2** (`toml-test test -decoder=... -encoder=...`). Run it with the Gradle tasks (they build the harness via `installDist` and shell out to the `toml-test` binary):
+
+```bash
+./gradlew :compliance:complianceTest      # full decoder + encoder suite (TOML 1.1)
+./gradlew :compliance:complianceDecode     # decoder only, faster iteration
+```
+
+The runner is resolved from `-PtomlTest=`, then `$TOML_TEST`, then `~/go/bin/toml-test`, then `PATH`; install it with `go install github.com/toml-lang/toml-test/v2/cmd/toml-test@v2.2.0`. The parser enforces the TOML grammar itself (it does **not** rely on the native date-time types to reject malformed input, since `java.time`/`kotlinx.datetime` validate leniently and inconsistently across platforms). `compliance/README.md` has details.
+
+### Platform gotchas
+
+- **Apple/Native targets need macOS.** Kotlin/Native cannot build the macOS/iOS targets on Linux, so `core:allTests` and a full publish only succeed on a Mac — that is why `.github/workflows/publish.yaml` runs on `macos-latest`. On Linux, validate with `core:jvmTest`/`core:jsTest`/`core:wasmJsTest` and the Linux-native targets.
+- **Wasm yarn lock drift.** `core:wasmJsTest`/`core:check` can fail at `:kotlinWasmStoreYarnLock` with "Lock file was changed". Fix with `./gradlew kotlinWasmUpgradeYarnLock` and commit the updated `kotlin-js-store/yarn.lock`.
 
 ## Architecture
 
@@ -71,4 +89,5 @@ Stream/reader/writer I/O is also platform-aware: `TomlReader`/`TomlWriter` are c
 - The module uses `explicitApi()` — every public declaration needs an explicit visibility modifier and the compiler enforces it.
 - Numerous opt-ins are enabled project-wide in `core/build.gradle.kts` (contracts, `ExperimentalSerializationApi`, `InternalSerializationApi`, the internal `@TomlSpecific` marker). When you hit an opt-in error, prefer adding to the existing `languageSettings` block over scattering `@OptIn`.
 - Copyright header (Apache-2.0, "Copyright 2026 Loney Chou") is present on every source file — keep it on new files.
-- Version, group, and dependency versions are centralized in `gradle.properties`.
+- `group`, `version`, and `archivesName` live in `gradle.properties`; dependency and plugin versions live in the `gradle/libs.versions.toml` version catalog (referenced as `libs.*` in build scripts).
+- JVM bytecode targets are pinned via toolchains, not the running JDK: `:core` uses `jvmToolchain(8)`, `:compliance`/`:benchmark` use 17. The distribution that runs Gradle in CI does not affect published artifacts.
