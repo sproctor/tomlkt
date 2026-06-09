@@ -661,15 +661,17 @@ private class TomlArrayOfTableEmitter(
         val lastIndex = array.size - 1
         array.forEachIndexed { index, table ->
             table as TomlTable
-            // Begin element.
+            // Begin element: a blank line separates this head from the preceding
+            // entry. The first head's separator is written by the caller (which
+            // may place a banner comment above it), so don't emit one here.
+            if (!(index == 0 && suppressFirstLineFeed)) {
+                writer.writeLineFeed()
+            }
+            // A leading comment sits directly above the head, with no blank line
+            // between them, so it reads as annotating this entry.
             val elementAnnotations = annotations.getOrNull(index)
             if (elementAnnotations != null) {
                 processAnnotations(elementAnnotations)
-            }
-            // The first head's separator is written by the caller when it places
-            // a comment directly above it, so don't emit a second line feed here.
-            if (!(index == 0 && suppressFirstLineFeed)) {
-                writer.writeLineFeed()
             }
             writer.writeArrayOfTableHead(path)
             writer.writeLineFeed()
@@ -686,12 +688,13 @@ private class TomlArrayOfTableEmitter(
         for (annotation in annotations) {
             when (annotation) {
                 is TomlComment -> {
-                    comment = annotation
+                    if (!annotation.inline) {
+                        comment = annotation
+                    }
                 }
             }
         }
         if (comment != null) {
-            writer.writeLineFeed()
             emitComment(comment)
         }
     }

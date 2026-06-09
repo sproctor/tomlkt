@@ -273,15 +273,20 @@ internal class TomlElementParser private constructor(
                             arrayOfTableIndices[path] = 0
                             val key = path.last()
                             val node = ArrayNode(key)
-                            if (tree.addByPath(path, node, arrayOfTableIndices, headAnnotations).not()) {
+                            // The array container itself carries no comment; a
+                            // comment above a head binds to its element (below).
+                            if (tree.addByPath(path, node, arrayOfTableIndices).not()) {
                                 throwConflictEntry(path)
                             }
                         } else {
                             arrayOfTableIndices[path] = currentIndex + 1
                         }
                         // A virtual node to act like the root of an array element.
+                        // Comments above this head attach to the element's
+                        // positional slot, so each entry keeps its own comment
+                        // and the attribution survives reordering.
                         val node = KeyNode("", isLast = false)
-                        tree.getByPath<ArrayNode>(path, arrayOfTableIndices).add(node)
+                        tree.getByPath<ArrayNode>(path, arrayOfTableIndices).add(node, headAnnotations)
                     }
                     currentTablePath = path
                 }
