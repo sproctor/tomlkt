@@ -134,4 +134,36 @@ class NullTest {
     fun decodeWithoutExplicitNulls() {
         testDecode(M3.serializer(), s33, m31, t1)
     }
+
+    @Serializable
+    data class M4(
+        @TomlInline
+        val c: M4Inner
+    )
+
+    @Serializable
+    data class M4Inner(
+        val a: Int,
+        val b: Boolean,
+        val n: Int?
+    )
+
+    val m41 = M4(
+        c = M4Inner(
+            a = 1,
+            b = false,
+            n = null
+        )
+    )
+
+    // A trailing entry skipped because it's null must not leave a dangling
+    // separator (", ") and an extra space before the closing brace.
+    val s41 = """
+        c = { a = 1, b = false }
+    """.trimIndent()
+
+    @Test
+    fun encodeInlineTableWithTrailingNull() {
+        testEncode(M4.serializer(), m41, s41, t1)
+    }
 }
