@@ -210,11 +210,18 @@ private class TomlInlineTableEmitter(
         // Emit structure.
         val explicitNulls = toml.config.explicitNulls
         val annotations = table.annotations
-        val lastIndex = table.size - 1
-        table.entries.forEachIndexed loop@{ index, (key, element) ->
+        // Write the separator before each emitted entry rather than after, so a
+        // skipped trailing entry never leaves a dangling ", " before the brace.
+        var first = true
+        table.entries.forEach loop@{ (key, element) ->
             if (element is TomlNull && !explicitNulls) {
                 return@loop
             }
+            if (!first) {
+                writer.writeElementSeparator()
+                writer.writeSpace()
+            }
+            first = false
             // Begin element.
             val elementAnnotations = annotations[key]
             if (elementAnnotations != null) {
@@ -226,10 +233,6 @@ private class TomlInlineTableEmitter(
             // End element.
             isStringLiteral = false
             integerRepresentation = null
-            if (index < lastIndex) {
-                writer.writeElementSeparator()
-                writer.writeSpace()
-            }
         }
         // End structure.
         writer.writeSpace()
@@ -262,11 +265,18 @@ private class TomlInlineArrayEmitter(
         // Emit structure.
         val explicitNulls = toml.config.explicitNulls
         val annotations = array.annotations
-        val lastIndex = array.size - 1
+        // Write the separator before each emitted item rather than after, so a
+        // skipped trailing item never leaves a dangling ", " before the bracket.
+        var first = true
         array.forEachIndexed loop@{ index, element ->
             if (element is TomlNull && !explicitNulls) {
                 return@loop
             }
+            if (!first) {
+                writer.writeElementSeparator()
+                writer.writeSpace()
+            }
+            first = false
             // Begin element.
             val elementAnnotations = annotations.getOrNull(index)
             if (elementAnnotations != null) {
@@ -277,10 +287,6 @@ private class TomlInlineArrayEmitter(
             // End element.
             isStringLiteral = false
             integerRepresentation = null
-            if (index < lastIndex) {
-                writer.writeElementSeparator()
-                writer.writeSpace()
-            }
         }
         // End structure.
         writer.writeSpace()
